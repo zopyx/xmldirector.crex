@@ -38,10 +38,12 @@ class ICRexSettings(Interface):
     crex_conversion_token = schema.TextLine(
         title=_(u'C-REX Conversion Token'),
         description=_(u'C-REX Conversion Token'),
-        default=u''
+        default=u'',
+        required=False
     )
 
     crex_conversion_token_last_fetched = schema.Datetime(
         title=_(u'DateTime C-Rex conversion toked fetched'),
         description=_(u'DateTime C-Rex conversion toked fetched'),
+        required=False
     )
