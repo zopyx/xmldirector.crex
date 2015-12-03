@@ -41,4 +41,7 @@ class ICRexSettings(Interface):
         default=u''
     )
 
-
+    crex_conversion_token_last_fetched = schema.Datetime(
+        title=_(u'DateTime C-Rex conversion toked fetched'),
+        description=_(u'DateTime C-Rex conversion toked fetched'),
+    )
