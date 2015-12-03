@@ -19,10 +19,14 @@ from plone.registry.interfaces import IRegistry
 from xmldirector.crex.logger import LOG
 from xmldirector.crex.interfaces import ICRexSettings
 
+
+class CRexConversionError(Exception):
+    pass
+
+
 def convert_crex(zip_path):
     """ Send ZIP archive with content to be converted to C-Rex """
 
-    # Onkopedia settings
     registry = getUtility(IRegistry)
     settings = registry.forInterface(ICRexSettings)
 
@@ -69,20 +73,14 @@ def convert_crex(zip_path):
             raise CRexConversionError(msg)
 
         if result.status_code == 200:
-            # SUCCESS
             msg = u'Conversion successful (HTTP code {}))'.format(result.status_code)
             LOG.info(msg)
-
-            # Write returned ZIP file to disk
             zip_out = tempfile.mktemp(suffix='.zip')
             with open(zip_out, 'wb') as fp:
                 fp.write(result.content)
             return zip_out
 
         else:
-
-            # OTHER ERROR
-
             # Forbidden -> invalid token -> invalidate token stored in
             # Plone
             if result.status_code == 401:
@@ -90,7 +88,6 @@ def convert_crex(zip_path):
                 settings.crex_conversion_token_last_fetched = datetime.datetime(
                     1999, 1, 1)
 
-            os.unlink(zip_temp)
             msg = u'Conversion failed (HTTP code {}, message {})'.format(
                 result.status_code, result.text)
             LOG.error(msg)
