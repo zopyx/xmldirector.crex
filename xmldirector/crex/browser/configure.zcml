@@ -19,7 +19,7 @@
     <browser:page
         name="xmldirector-crex-convert"
         for="Products.CMFPlone.interfaces.IPloneSiteRoot"
-        class=".demo.Demo"
+        class=".converter.Converter"
         attribute="convert"
         permission="cmf.ManagePortal"
     />

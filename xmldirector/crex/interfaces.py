@@ -20,19 +20,19 @@ class ICRexSettings(Interface):
     crex_conversion_url = schema.TextLine(
         title=_(u'URL for C-REX conversion webservice'),
         description=_(u'URL for C-REX conversion webservice'),
-        default=u'https://c-rex.net'
+        default=u'https://c-rex.net/api/XBot/Convert/DGHO/docxMigration'
     )
 
     crex_conversion_username = schema.TextLine(
         title=_(u'Username for C-REX conversion webservice'),
         description=_(u'Username for C-REX conversion webservice'),
-        default=u'onkopedia@dgho.de'
+        default=u''
     )
 
     crex_conversion_password = schema.TextLine(
         title=_(u'Password for C-REX conversion webservice'),
         description=_(u'Password for C-REX conversion webservice'),
-        default=u'Eeh[}gX;'
+        default=u''
     )
 
     crex_conversion_token = schema.TextLine(

@@ -7,6 +7,7 @@
 
 import os
 import time
+import furl
 import datetime
 import tempfile
 import requests
@@ -37,8 +38,8 @@ def convert_crex(zip_path):
     diff = datetime.datetime.utcnow() - crex_token_last_fetched
     if not crex_token or diff.total_seconds() > 3600:
         LOG.info('Fetching new DOCX authentication token')
-        # get conversion token
-        token_url = '{}/api/Token'.format(settings.crex_conversion_url)
+        f = furl.furl(settings.crex_conversion_url)
+        token_url = '{}://{}/api/Token'.format(f.scheme, f.host, settings.crex_conversion_url)
         headers = {'content-type': 'application/x-www-form-urlencoded'}
         params = dict(
             username=settings.crex_conversion_username,
@@ -60,14 +61,12 @@ def convert_crex(zip_path):
     else:
         LOG.info('Fetching DOCX authentication token from Plone cache')
 
-    conversion_url = '{}/api/XBot/Convert/DGHO/docxMigration'.format(
-        settings.crex_conversion_url)
     headers = {'authorization': 'Bearer {}'.format(crex_token)}
 
     with open(zip_path, 'rb') as fp:
         try:
             result = requests.post(
-                conversion_url, files=dict(source=fp), headers=headers)
+                settings.crex_conversion_url, files=dict(source=fp), headers=headers)
         except requests.ConnectionError:
             msg = u'Connection to C-REX webservice failed'
             raise CRexConversionError(msg)

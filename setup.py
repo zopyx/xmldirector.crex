@@ -29,6 +29,7 @@ setup(name='xmldirector.crex',
       zip_safe=False,
       install_requires=[
           'setuptools',
+          'furl',
           'requests',
       ],
       tests_require=['zope.testing'],
