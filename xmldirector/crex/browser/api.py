@@ -42,12 +42,10 @@ def convert_crex(zip_path):
             grant_type='password')
         result = requests.post(token_url, data=params, headers=headers)
         if result.status_code != 200:
-            msg = self.translate(u'Error retrieving DOCX conversion token from webservice (HTTP code {}, Message {})').format(
+            msg = u'Error retrieving DOCX conversion token from webservice (HTTP code {}, Message {})'.format(
                 result.status_code, result.text)
-            self.context.plone_utils.addPortalMessage(msg, 'error')
-            self.logger.log(msg, 'error')
             LOG.error(msg)
-            return self.request.response.redirect(self.context.absolute_url() + '/@@onkopedia')
+            raise CRexConversionError(msg)
 
         data = result.json()
         crex_token = data['access_token']
@@ -67,9 +65,8 @@ def convert_crex(zip_path):
             result = requests.post(
                 conversion_url, files=dict(source=fp), headers=headers)
         except requests.ConnectionError:
-            msg = self.translate(u'Connection to C-REX webservice failed')
-            self.context.plone_utils.addPortalMessage(msg, 'error')
-            return self.request.response.redirect(self.context.absolute_url() + '/@@onkopedia')
+            msg = u'Connection to C-REX webservice failed'
+            raise CRexConversionError(msg)
 
         if result.status_code == 200:
             # SUCCESS
@@ -80,6 +77,7 @@ def convert_crex(zip_path):
             zip_out = tempfile.mktemp(suffix='.zip')
             with open(zip_out, 'wb') as fp:
                 fp.write(result.content)
+            return zip_out
 
         else:
 
@@ -96,6 +94,5 @@ def convert_crex(zip_path):
             msg = u'Conversion failed (HTTP code {}, message {})'.format(
                 result.status_code, result.text)
             LOG.error(msg)
-            return self.request.response.redirect(self.context.absolute_url() + '/@@onkopedia')
+            raise CRexConversionError(msg)
 
-        return zip_out
