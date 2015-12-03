@@ -1,9 +1,9 @@
 import os
 from setuptools import setup, find_packages
 
-version = '1.3.0b1'
+version = '0.0.1'
 
-setup(name='xmldirector.plonecore',
+setup(name='xmldirector.crex',
       version=version,
       description="XML-Director ",
       long_description=open(os.path.join("docs", "source", "README.rst")).read() + "\n" +
@@ -21,7 +21,7 @@ setup(name='xmldirector.plonecore',
       keywords='xml-director exist-db basex owncloud alfresco existdb Plone XML Python WebDAV',
       author='Andreas Jung',
       author_email='info@zopyx.com',
-      url='http://pypi.python.org/pypi/xmldirector.plonecore',
+      url='http://pypi.python.org/pypi/xmldirector.crex',
       license='GPL',
       packages=find_packages(exclude=['ez_setup']),
       namespace_packages=['xmldirector'],
@@ -29,23 +29,7 @@ setup(name='xmldirector.plonecore',
       zip_safe=False,
       install_requires=[
           'setuptools',
-          'plone.app.dexterity',
-          'plone.directives.form',
-          'hurry.filesize',
-          'humanize',
-          'zope.i18nmessageid',
-          'plone.browserlayer',
-          'plone.api',
           'requests',
-          'progressbar',
-          'python-dateutil',
-          'fs',
-          'furl',
-          'dexml',
-          'grampg',
-          'defusedxml',
-          'cssselect',
-          # -*- Extra requirements: -*-
       ],
       tests_require=['zope.testing'],
       entry_points="""
