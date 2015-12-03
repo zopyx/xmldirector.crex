@@ -10,17 +10,17 @@
 
     <!-- demo --> 
     <browser:page
-        name="xmldirector-crex-demo"
+        name="xmldirector-crex-form"
         for="Products.CMFPlone.interfaces.IPloneSiteRoot"
-        class=".demo.Demo"
-        attribute="demo"
+        template="demo_form.pt"
         permission="cmf.ManagePortal"
     />
 
     <browser:page
-        name="xmldirector-crex-form"
+        name="xmldirector-crex-convert"
         for="Products.CMFPlone.interfaces.IPloneSiteRoot"
-        template="demo_form.pt"
+        class=".demo.Demo"
+        attribute="convert"
         permission="cmf.ManagePortal"
     />
 
