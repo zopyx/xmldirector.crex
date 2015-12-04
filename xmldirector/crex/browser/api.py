@@ -74,7 +74,7 @@ def convert_crex(zip_path):
             raise CRexConversionError(msg)
 
         if result.status_code == 200:
-            msg = u'Conversion successful (HTTP code {}, duration: {}))'.format(result.status_code, time.time() - ts)
+            msg = u'Conversion successful (HTTP code {}, duration: {:2.1f} seconds))'.format(result.status_code, time.time() - ts)
             LOG.info(msg)
             zip_out = tempfile.mktemp(suffix='.zip')
             with open(zip_out, 'wb') as fp:
