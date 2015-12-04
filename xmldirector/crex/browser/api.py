@@ -5,8 +5,6 @@
 # (C) 2015,  Andreas Jung, www.zopyx.com, Tuebingen, Germany
 ################################################################
 
-import os
-import time
 import furl
 import datetime
 import tempfile
@@ -14,7 +12,6 @@ import requests
 
 import plone.api
 from zope.component import getUtility
-from zope.component import queryUtility
 from plone.registry.interfaces import IRegistry
 
 from xmldirector.crex.logger import LOG
@@ -26,7 +23,9 @@ class CRexConversionError(Exception):
 
 
 def convert_crex(zip_path):
-    """ Send ZIP archive with content to be converted to C-Rex """
+    """ Send ZIP archive with content to be converted to C-Rex.
+        Returns name of ZIP file with converted resources.
+    """
 
     registry = getUtility(IRegistry)
     settings = registry.forInterface(ICRexSettings)
@@ -51,10 +50,8 @@ def convert_crex(zip_path):
                 result.status_code, result.text)
             LOG.error(msg)
             raise CRexConversionError(msg)
-
         data = result.json()
         crex_token = data['access_token']
-
         settings.crex_conversion_token = crex_token
         settings.crex_conversion_token_last_fetched = datetime.datetime.utcnow()
         LOG.info('Fetching new DOCX authentication token - successful')
@@ -80,15 +77,12 @@ def convert_crex(zip_path):
             return zip_out
 
         else:
-            # Forbidden -> invalid token -> invalidate token stored in
-            # Plone
+            # Forbidden -> invalid token -> invalidate token stored in Plone
             if result.status_code == 401:
                 settings.crex_conversion_token = u''
                 settings.crex_conversion_token_last_fetched = datetime.datetime(
                     1999, 1, 1)
-
             msg = u'Conversion failed (HTTP code {}, message {})'.format(
                 result.status_code, result.text)
             LOG.error(msg)
             raise CRexConversionError(msg)
-
