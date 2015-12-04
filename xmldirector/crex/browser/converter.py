@@ -12,8 +12,10 @@ from Products.Five.browser import BrowserView
 
 
 class Converter(BrowserView):
+    """ C-Rex converter """
 
     def convert(self):
+        """ Convert uploaded ZIP file ``zipfile`` using C-Rex """
 
         zf = self.request.form.get('zipfile')
         if not zf:

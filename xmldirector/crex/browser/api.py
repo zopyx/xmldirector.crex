@@ -5,6 +5,9 @@
 # (C) 2015,  Andreas Jung, www.zopyx.com, Tuebingen, Germany
 ################################################################
 
+
+import os
+import time
 import furl
 import datetime
 import tempfile
@@ -27,6 +30,8 @@ def convert_crex(zip_path):
         Returns name of ZIP file with converted resources.
     """
 
+
+    ts = time.time()
     registry = getUtility(IRegistry)
     settings = registry.forInterface(ICRexSettings)
 
@@ -36,7 +41,6 @@ def convert_crex(zip_path):
         2000, 1, 1)
     diff = datetime.datetime.utcnow() - crex_token_last_fetched
     if not crex_token or diff.total_seconds() > 3600:
-        LOG.info('Fetching new DOCX authentication token')
         f = furl.furl(settings.crex_conversion_url)
         token_url = '{}://{}/api/Token'.format(f.scheme, f.host, settings.crex_conversion_url)
         headers = {'content-type': 'application/x-www-form-urlencoded'}
@@ -62,6 +66,7 @@ def convert_crex(zip_path):
 
     with open(zip_path, 'rb') as fp:
         try:
+            LOG.info(u'Starting C-Rex conversion of {}, size {} '.format(zip_path, os.path.getsize(zip_path)))
             result = requests.post(
                 settings.crex_conversion_url, files=dict(source=fp), headers=headers)
         except requests.ConnectionError:
@@ -69,7 +74,7 @@ def convert_crex(zip_path):
             raise CRexConversionError(msg)
 
         if result.status_code == 200:
-            msg = u'Conversion successful (HTTP code {}))'.format(result.status_code)
+            msg = u'Conversion successful (HTTP code {}, duration: {}))'.format(result.status_code, time.time() - ts)
             LOG.info(msg)
             zip_out = tempfile.mktemp(suffix='.zip')
             with open(zip_out, 'wb') as fp:
