@@ -15,6 +15,8 @@ import requests
 
 import plone.api
 from zope.component import getUtility
+from AccessControl import Unauthorized
+from AccessControl import getSecurityManager
 from plone.registry.interfaces import IRegistry
 
 from xmldirector.crex.logger import LOG
@@ -91,3 +93,30 @@ def convert_crex(zip_path):
                 result.status_code, result.text)
             LOG.error(msg)
             raise CRexConversionError(msg)
+
+from plone.jsonapi.core import router
+
+@router.add_route("/hello/<string:name>", "hello", methods=["GET"])
+def hello(context, request, name="world"):
+    return {"hello": name}
+
+
+@router.add_route("/xmldirector/search", "search", methods=["GET"])
+def search(context, request):
+
+    if not getSecurityManager().checkPermission("View", context):
+        raise Unauthorized("You don't have the 'View' permission")
+
+    catalog = plone.api.portal.get_tool('portal_catalog')
+    query = dict(portal_type='xmldirector.plonecore.connector')
+    brains = catalog(**query)
+    items = list()
+    for brain in brains:
+        items.append(dict(
+            id=brain.getId,
+            path=brain.getPath(),
+            title=brain.Title,
+            creator=brain.Creator,
+            created=brain.created.ISO8601(),
+            modified=brain.modified.ISO8601()))
+    return dict(items=items)
