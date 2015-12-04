@@ -18,9 +18,12 @@ from zope.component import getUtility
 from AccessControl import Unauthorized
 from AccessControl import getSecurityManager
 from plone.registry.interfaces import IRegistry
+from plone.jsonapi.core import router
 
 from xmldirector.crex.logger import LOG
 from xmldirector.crex.interfaces import ICRexSettings
+
+from xmldirector.plonecore.browser.connector import Connector as connector_view
 
 
 class CRexConversionError(Exception):
@@ -94,12 +97,6 @@ def convert_crex(zip_path):
             LOG.error(msg)
             raise CRexConversionError(msg)
 
-from plone.jsonapi.core import router
-
-@router.add_route("/hello/<string:name>", "hello", methods=["GET"])
-def hello(context, request, name="world"):
-    return {"hello": name}
-
 
 @router.add_route("/xmldirector/search", "search", methods=["GET"])
 def search(context, request):
@@ -115,8 +112,31 @@ def search(context, request):
         items.append(dict(
             id=brain.getId,
             path=brain.getPath(),
+            url=brain.getURL(),
             title=brain.Title,
             creator=brain.Creator,
             created=brain.created.ISO8601(),
             modified=brain.modified.ISO8601()))
     return dict(items=items)
+
+
+@router.add_route("/xmldirector/export-zip", "export-zip", methods=["GET"])
+def export_zip(context, request):
+    
+    if not getSecurityManager().checkPermission("View", context):
+        raise Unauthorized("You don't have the 'View' permission")
+
+    path = request.form.get('path')
+    if not path:
+        raise ValueError('``path`` parameter missing')
+
+    obj = context.restrictedTraverse(path, None)
+    if obj is None:
+        raise ValueError('Unable to retrieve object ({})'.format(path))
+
+    dirs = request.form.get('dirs', '')
+
+    view = connector_view(request=request, context=context)
+    view.zip_export(dirs=dirs, download=True)
+    self.request.response.setStatus(200)
+    self.request.response.write('DONE')
