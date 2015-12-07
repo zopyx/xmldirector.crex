@@ -25,7 +25,7 @@ url = data['url']
 print(id)
 print (url)
 
-result = requests.get(url + '/@@API/xmldirector/get_metadata/', auth=HTTPBasicAuth(user, password), headers=headers,data=json.dumps(payload))
+result = requests.get(url + '/@@API/xmldirector/get_metadata/', auth=HTTPBasicAuth(user, password), data=json.dumps(payload))
 data = result.json()
 pprint.pprint(data)
 
@@ -38,10 +38,17 @@ result = requests.post(url + '/@@API/xmldirector/set_metadata', auth=HTTPBasicAu
 print result
 
 
-
-result = requests.get(url + '/@@API/xmldirector/get_metadata/', auth=HTTPBasicAuth(user, password), headers=headers,data=json.dumps(payload))
+result = requests.get(url + '/@@API/xmldirector/get_metadata/', auth=HTTPBasicAuth(user, password), data=json.dumps(payload))
 data = result.json()
 pprint.pprint(data)
+
+
+files = {'file': open('sample.zip', 'rb')}
+result = requests.post(url + '/@@API/xmldirector/convert/', auth=HTTPBasicAuth(user, password), files=files)
+data = result.json()
+pprint.pprint(data)
+
+
 
 result = requests.get(url + '/@@API/xmldirector/delete/', auth=HTTPBasicAuth(user, password), headers=headers,data=json.dumps(payload))
 data = result.json()

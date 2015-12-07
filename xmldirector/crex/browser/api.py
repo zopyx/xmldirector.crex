@@ -104,6 +104,23 @@ def convert_crex(zip_path):
             LOG.error(msg)
             raise CRexConversionError(msg)
 
+@router.add_route("/xmldirector/convert", "convert", methods=["POST"])
+def convert(context, request):
+
+    if not getSecurityManager().checkPermission("Modify Portal Content", context):
+        raise Unauthorized("You don't have the 'Modify Portal Content' permission")
+
+    zip_tmp = tempfile.mktemp(suffix='.zip')
+    with open(zip_tmp, 'wb') as fp:
+        fp.write(request.form['file'].read())
+        
+    zip_out = convert_crex(zip_tmp)
+    with open(zip_out, 'rb') as fp:
+        return dict(data=json.dumps(fp))
+#    from ZPublisher.Iterators import filestream_iterator
+#    request.response.setHeader('content-type', 'application/zip')
+#    request.response.setHeader('content-length', str(os.path.getsize(zip_out)))
+#    return filestream_iterator(zip_out)
 
 @router.add_route("/xmldirector/search", "search", methods=["GET"])
 def search(context, request):
@@ -225,5 +242,10 @@ def set_metadata(context, request):
     subject = payload.get('subject')
     if subject:
         context.setSubject(subject)
+
+    custom = payload.get('custom')
+    if custom:
+        annotations = IAnnotations(context)
+        annotations[ANNOTATION_KEY] = custom
 
     return dict()
