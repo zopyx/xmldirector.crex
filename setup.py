@@ -30,6 +30,7 @@ setup(name='xmldirector.crex',
       install_requires=[
           'setuptools',
           'furl',
+          'zopyx.plone.persistentlogger',
           'requests',
       ],
       tests_require=['zope.testing'],

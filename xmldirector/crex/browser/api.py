@@ -7,14 +7,17 @@
 
 
 import os
+import json
 import time
 import furl
+import uuid
 import datetime
 import tempfile
 import requests
 
 import plone.api
 from zope.component import getUtility
+from zope.annotation.interfaces import IAnnotations
 from AccessControl import Unauthorized
 from AccessControl import getSecurityManager
 from plone.registry.interfaces import IRegistry
@@ -25,6 +28,10 @@ from xmldirector.crex.interfaces import ICRexSettings
 
 from xmldirector.plonecore.browser.connector import Connector as connector_view
 
+from zopyx.plone.persistentlogger.logger import IPersistentLogger
+
+
+ANNOTATION_KEY = 'xmldirector.plonecore.crex'
 
 class CRexConversionError(Exception):
     pass
@@ -140,3 +147,83 @@ def export_zip(context, request):
     view.zip_export(dirs=dirs, download=True)
     self.request.response.setStatus(200)
     self.request.response.write('DONE')
+
+
+@router.add_route("/xmldirector/delete", "delete", methods=["GET"])
+def delete(context, request):
+
+    if not getSecurityManager().checkPermission("Manage Delete", context):
+        raise Unauthorized("You don't have the 'Manage Delete' permission")
+
+    parent = context.aq_parent
+    parent.manage_delObjects(context.getId())
+    return dict()
+
+@router.add_route("/xmldirector/get_metadata", "get_metadata", methods=["GET"])
+def get_metadata(context, request):
+
+    if not getSecurityManager().checkPermission("View", context):
+        raise Unauthorized("You don't have the 'View' permission")
+
+    annotations = IAnnotations(context)
+    custom = annotations.get(ANNOTATION_KEY)
+
+    return dict(
+        id=context.getId(),
+        title=context.Title(),
+        description=context.Description(),
+        created=context.created().ISO8601(),
+        modified=context.modified().ISO8601(),
+        subject=context.Subject(),
+        creator=context.Creator(),
+        custom=custom)
+
+@router.add_route("/xmldirector/create", "create", methods=["POST"])
+def create(context, request):
+
+    if not getSecurityManager().checkPermission("Modify Portal Content", context):
+        raise Unauthorized("You don't have the 'Modify Portal Content' permission")
+
+    payload = json.loads(request.BODY)
+    id = str(uuid.uuid4())
+    title = payload.get('title')
+    description = payload.get('description')
+    custom = payload.get('custom')
+
+    connector = plone.api.content.create(type='xmldirector.plonecore.connector',
+        container=context,
+        id=id,
+        title=title,
+        description=description)
+
+    if custom:
+        annotations = IAnnotations(connector)
+        annotations[ANNOTATION_KEY] = custom
+
+    IPersistentLogger(connector).log('created', details=payload)
+    return dict(
+        id=id,
+        url=connector.absolute_url(),
+        )
+
+@router.add_route("/xmldirector/set_metadata", "set_metadat", methods=["POST"])
+def set_metadata(context, request):
+
+    if not getSecurityManager().checkPermission("Modify Portal Content", context):
+        raise Unauthorized("You don't have the 'Modify Portal Content' permission")
+
+    payload = json.loads(request.BODY)
+
+    title = payload.get('title')
+    if title:
+        context.setTitle(title)
+
+    description = payload.get('description')
+    if description:
+        context.setDescription(description)
+    
+    subject = payload.get('subject')
+    if subject:
+        context.setSubject(subject)
+
+    return dict()
