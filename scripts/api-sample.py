@@ -4,6 +4,14 @@ import json
 import requests
 from requests.auth import HTTPBasicAuth
 
+
+def verify_result(result):
+    data_json = result.json()
+    if 'error' in data_json:
+        print result.url
+        print data_json['error']
+        raise RuntimeError()
+
 url = 'http://dev1.veit-schiele.de:12020/Plone'
 user = 'admin'
 password = 'admin'
@@ -21,12 +29,14 @@ payload = dict(
 print '-'*80
 print 'SEARCH'
 result = requests.get(url + '/@@API/xmldirector/search', auth=HTTPBasicAuth(user, password), headers=headers,data=json.dumps(payload))
+verify_result(result)
 data = result.json()
 pprint.pprint(data)
 
 print '-'*80
 print 'CREATE'
 result = requests.post(url + '/@@API/xmldirector/create', auth=HTTPBasicAuth(user, password), headers=headers,data=json.dumps(payload))
+verify_result(result)
 data = result.json()
 id = data['id']
 url = data['url']
@@ -36,6 +46,7 @@ print (url)
 print '-'*80
 print 'GET_METADATA'
 result = requests.get(url + '/@@API/xmldirector/get_metadata/', auth=HTTPBasicAuth(user, password), data=json.dumps(payload))
+verify_result(result)
 data = result.json()
 pprint.pprint(data)
 
@@ -47,27 +58,39 @@ payload = dict(
     description=u'New description'
 )
 result = requests.post(url + '/@@API/xmldirector/set_metadata', auth=HTTPBasicAuth(user, password), headers=headers,data=json.dumps(payload))
+verify_result(result)
 print result
 
 
 print '-'*80
 print 'GET_METADATA'
 result = requests.get(url + '/@@API/xmldirector/get_metadata/', auth=HTTPBasicAuth(user, password), data=json.dumps(payload))
+verify_result(result)
 data = result.json()
 pprint.pprint(data)
-
 
 print '-'*80
-print 'CONVERT'
-files = {'file': open('sample.zip', 'rb')}
-result = requests.post(url + '/@@API/xmldirector/convert/', auth=HTTPBasicAuth(user, password), files=files)
+print 'UPLOAD DOCX'
+files = {'file': open('sample.docx', 'rb')}
+print url
+result = requests.post(url + '/@@API/xmldirector/store', auth=HTTPBasicAuth(user, password), files=files)
+verify_result(result)
 data = result.json()
 pprint.pprint(data)
+
+#print '-'*80
+#print 'CONVERT'
+#files = {'file': open('sample.zip', 'rb')}
+#result = requests.post(url + '/@@API/xmldirector/convert/', auth=HTTPBasicAuth(user, password), files=files)
+#verify_result(result)
+#data = result.json()
+#pprint.pprint(data)
 
 
 print '-'*80
 print 'DELETE'
 result = requests.get(url + '/@@API/xmldirector/delete/', auth=HTTPBasicAuth(user, password), headers=headers,data=json.dumps(payload))
+verify_result(result)
 data = result.json()
 pprint.pprint(data)
 

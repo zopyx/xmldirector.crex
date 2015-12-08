@@ -111,6 +111,42 @@ def convert_crex(zip_path):
             LOG.error(msg)
             raise CRexConversionError(msg)
 
+
+@router.add_route('/xmldirector/store', 'xmldirector/store', methods=['POST'])
+def store(context, request):
+    import pdb; pdb.set_trace() 
+    check_permission(permissions.ModifyPortalContent, context)
+
+    original_fn = os.path.basename(request.form['file'].filename)
+
+    out_tmp = tempfile.mktemp(suffix=original_fn)
+    with open(out_tmp, 'wb') as fp:
+        fp.write(request.form['file'].read())
+
+    # calculated hash
+    import hashlib
+    sha256 = hashlib.sha256()
+    with open(out_tmp, 'rb') as fp:
+        while True:
+            data = f.read(2**20)
+            if not data:
+                break
+            sha256.update(data)
+    sha256_digest = sha256.digest()
+    print sha256_digest
+
+
+    handle = context.webdav_handle()
+    target_path = 'word/index.docx'
+    if not handle.exists(os.path.dirname(target_path)):
+        handle.makedir(os.path.dirname(target_path))
+    with handle.open(target_path, 'wb') as fp_in:
+        with open(out_tmp, 'rb') as fp_out:
+            fp_out.write(fp_in.read())
+
+    return dict()
+    
+
 @router.add_route('/xmldirector/convert', 'xmldirector/convert', methods=['POST'])
 def convert(context, request):
 
@@ -140,10 +176,6 @@ def convert(context, request):
 
     with open(zip_out, 'rb') as fp:
         return dict(data=fp.read().encode('base64'))
-#    from ZPublisher.Iterators import filestream_iterator
-#    request.response.setHeader('content-type', 'application/zip')
-#    request.response.setHeader('content-length', str(os.path.getsize(zip_out)))
-#    return filestream_iterator(zip_out)
 
 
 @router.add_route('/xmldirector/search', 'xmldirector/search', methods=['GET'])
