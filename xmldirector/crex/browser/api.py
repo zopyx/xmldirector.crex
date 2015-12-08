@@ -122,7 +122,6 @@ def convert(context, request):
         
     zip_out = convert_crex(zip_tmp)
 
-    import pdb; pdb.set_trace() 
     handle = context.webdav_handle()
     target_root_dir = 'current'
     if handle.exists(target_root_dir):
@@ -135,7 +134,7 @@ def convert(context, request):
             target_dir = os.path.dirname(target_path)
             if not handle.exists(target_dir):
                 handle.makedir(target_dir, recursive=True)
-            with handle.open(target_path, 'rb') as fp_out:
+            with handle.open(target_path, 'wb') as fp_out:
                 with zip_in.open(name, 'rb') as fp_in:
                     fp_out.write(fp_in.read())
 
@@ -233,6 +232,7 @@ def create(context, request):
         title=title,
         description=description)
     connector.webdav_subpath = id
+    handle = connector.webdav_handle(create_if_not_existing=True)
 
     if custom:
         annotations = IAnnotations(connector)

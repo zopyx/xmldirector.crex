@@ -19,6 +19,7 @@ payload = dict(
 )
 
 result = requests.post(url + '/@@API/xmldirector/create', auth=HTTPBasicAuth(user, password), headers=headers,data=json.dumps(payload))
+print result
 data = result.json()
 id = data['id']
 url = data['url']
