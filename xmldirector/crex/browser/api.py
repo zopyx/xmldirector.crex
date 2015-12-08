@@ -11,6 +11,7 @@ import json
 import time
 import furl
 import uuid
+import hashlib
 import datetime
 import tempfile
 import requests
@@ -43,6 +44,17 @@ def check_permission(permission, context):
 
     if not getSecurityManager().checkPermission(permission, context):
         raise Unauthorized('You don\'t have the \'{}\' permission'.format(permission))
+
+def sha256_fp(fp):
+    fp.seek(0)
+    sha256 = hashlib.sha256()
+    while True:
+        data = fp.read(2**20)
+        if not data:
+            break
+        sha256.update(data)
+    return sha256.hexdigest()
+
 
 
 def convert_crex(zip_path):
@@ -112,9 +124,20 @@ def convert_crex(zip_path):
             raise CRexConversionError(msg)
 
 
+@router.add_route('/xmldirector/get', 'xmldirector/get', methods=['GET'])
+def get(context, request):
+
+    check_permission(permissions.ModifyPortalContent, context)
+
+    handle = context.webdav_handle()
+    target_path = 'word/index.docx'
+    with handle.open(target_path, 'rb') as fp:
+        return dict(file=fp.read().encode('base64'))
+
+
 @router.add_route('/xmldirector/store', 'xmldirector/store', methods=['POST'])
 def store(context, request):
-    import pdb; pdb.set_trace() 
+
     check_permission(permissions.ModifyPortalContent, context)
 
     original_fn = os.path.basename(request.form['file'].filename)
@@ -123,28 +146,32 @@ def store(context, request):
     with open(out_tmp, 'wb') as fp:
         fp.write(request.form['file'].read())
 
-    # calculated hash
-    import hashlib
     sha256 = hashlib.sha256()
     with open(out_tmp, 'rb') as fp:
-        while True:
-            data = f.read(2**20)
-            if not data:
-                break
-            sha256.update(data)
-    sha256_digest = sha256.digest()
-    print sha256_digest
-
+        sha256_digest = sha256_fp(fp)
 
     handle = context.webdav_handle()
     target_path = 'word/index.docx'
     if not handle.exists(os.path.dirname(target_path)):
         handle.makedir(os.path.dirname(target_path))
-    with handle.open(target_path, 'wb') as fp_in:
-        with open(out_tmp, 'rb') as fp_out:
-            fp_out.write(fp_in.read())
 
-    return dict()
+    existing_sha256 = None
+    if handle.exists(target_path + '.sha256'):
+        with handle.open(target_path + '.sha256', 'rb') as fp:
+            existing_sha256 = fp.read()
+
+    print existing_sha256
+    print sha256_digest
+    if existing_sha256 != sha256_digest:
+        with open(out_tmp, 'rb') as fp_out:
+            with handle.open(target_path, 'wb') as fp_in:
+                fp_in.write(fp_out.read())
+            with handle.open(target_path + '.sha256', 'wb') as sha_fp:
+                sha_fp.write(sha256_digest)
+            
+        return dict(msg=u'Saved')
+    else:
+        return dict(msg=u'Not saved, no modifications')
     
 
 @router.add_route('/xmldirector/convert', 'xmldirector/convert', methods=['POST'])

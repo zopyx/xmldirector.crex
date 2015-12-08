@@ -69,11 +69,20 @@ verify_result(result)
 data = result.json()
 pprint.pprint(data)
 
+for i in range(1,3):
+    print '-'*80
+    print 'UPLOAD DOCX'
+    files = {'file': open('sample.docx', 'rb')}
+    print url
+    result = requests.post(url + '/@@API/xmldirector/store', auth=HTTPBasicAuth(user, password), files=files)
+    verify_result(result)
+    data = result.json()
+    pprint.pprint(data)
+
 print '-'*80
-print 'UPLOAD DOCX'
-files = {'file': open('sample.docx', 'rb')}
+print 'UPLOAD GET'
 print url
-result = requests.post(url + '/@@API/xmldirector/store', auth=HTTPBasicAuth(user, password), files=files)
+result = requests.get(url + '/@@API/xmldirector/get', auth=HTTPBasicAuth(user, password))
 verify_result(result)
 data = result.json()
 pprint.pprint(data)
@@ -87,10 +96,10 @@ pprint.pprint(data)
 #pprint.pprint(data)
 
 
-print '-'*80
-print 'DELETE'
-result = requests.get(url + '/@@API/xmldirector/delete/', auth=HTTPBasicAuth(user, password), headers=headers,data=json.dumps(payload))
-verify_result(result)
-data = result.json()
-pprint.pprint(data)
+#print '-'*80
+#print 'DELETE'
+#result = requests.get(url + '/@@API/xmldirector/delete/', auth=HTTPBasicAuth(user, password), headers=headers,data=json.dumps(payload))
+#verify_result(result)
+#data = result.json()
+#pprint.pprint(data)
 
