@@ -18,6 +18,7 @@ import requests
 import plone.api
 from zope.component import getUtility
 from zope.annotation.interfaces import IAnnotations
+from Products.CMFCore import permissions
 from AccessControl import Unauthorized
 from AccessControl import getSecurityManager
 from plone.registry.interfaces import IRegistry
@@ -37,11 +38,16 @@ class CRexConversionError(Exception):
     pass
 
 
-def convert_crex(zip_path):
-    """ Send ZIP archive with content to be converted to C-Rex.
-        Returns name of ZIP file with converted resources.
-    """
+def check_permission(permission, context):
 
+    if not getSecurityManager().checkPermission(permission, context):
+        raise Unauthorized('You don\'t have the \'{}\' permission'.format(permission))
+
+
+def convert_crex(zip_path):
+    ''' Send ZIP archive with content to be converted to C-Rex.
+        Returns name of ZIP file with converted resources.
+    '''
 
     ts = time.time()
     registry = getUtility(IRegistry)
@@ -104,11 +110,10 @@ def convert_crex(zip_path):
             LOG.error(msg)
             raise CRexConversionError(msg)
 
-@router.add_route("/xmldirector/convert", "convert", methods=["POST"])
+@router.add_route('/xmldirector/convert', 'xmldirector/convert', methods=['POST'])
 def convert(context, request):
 
-    if not getSecurityManager().checkPermission("Modify Portal Content", context):
-        raise Unauthorized("You don't have the 'Modify Portal Content' permission")
+    check_permission(permissions.ModifyPortalContent, context)
 
     zip_tmp = tempfile.mktemp(suffix='.zip')
     with open(zip_tmp, 'wb') as fp:
@@ -122,11 +127,10 @@ def convert(context, request):
 #    request.response.setHeader('content-length', str(os.path.getsize(zip_out)))
 #    return filestream_iterator(zip_out)
 
-@router.add_route("/xmldirector/search", "search", methods=["GET"])
+@router.add_route('/xmldirector/search', 'xmldirector/search', methods=['GET'])
 def search(context, request):
 
-    if not getSecurityManager().checkPermission("View", context):
-        raise Unauthorized("You don't have the 'View' permission")
+    check_permission(permissions.View, context)
 
     catalog = plone.api.portal.get_tool('portal_catalog')
     query = dict(portal_type='xmldirector.plonecore.connector')
@@ -144,11 +148,10 @@ def search(context, request):
     return dict(items=items)
 
 
-@router.add_route("/xmldirector/export-zip", "export-zip", methods=["GET"])
+@router.add_route('/xmldirector/export-zip', 'xmldirector/export-zip', methods=['GET'])
 def export_zip(context, request):
     
-    if not getSecurityManager().checkPermission("View", context):
-        raise Unauthorized("You don't have the 'View' permission")
+    check_permission(permissions.View, context)
 
     path = request.form.get('path')
     if not path:
@@ -166,21 +169,19 @@ def export_zip(context, request):
     self.request.response.write('DONE')
 
 
-@router.add_route("/xmldirector/delete", "delete", methods=["GET"])
+@router.add_route('/xmldirector/delete', 'xmldirector/delete', methods=['GET'])
 def delete(context, request):
 
-    if not getSecurityManager().checkPermission("Manage Delete", context):
-        raise Unauthorized("You don't have the 'Manage Delete' permission")
+    check_permission(permissions.ManageDelete, context)
 
     parent = context.aq_parent
     parent.manage_delObjects(context.getId())
     return dict()
 
-@router.add_route("/xmldirector/get_metadata", "get_metadata", methods=["GET"])
+@router.add_route('/xmldirector/get_metadata', 'xmldirector/get_metadata', methods=['GET'])
 def get_metadata(context, request):
 
-    if not getSecurityManager().checkPermission("View", context):
-        raise Unauthorized("You don't have the 'View' permission")
+    check_permission(permissions.View, context)
 
     annotations = IAnnotations(context)
     custom = annotations.get(ANNOTATION_KEY)
@@ -195,11 +196,10 @@ def get_metadata(context, request):
         creator=context.Creator(),
         custom=custom)
 
-@router.add_route("/xmldirector/create", "create", methods=["POST"])
+@router.add_route('/xmldirector/create', 'xmldirector/create', methods=['POST'])
 def create(context, request):
 
-    if not getSecurityManager().checkPermission("Modify Portal Content", context):
-        raise Unauthorized("You don't have the 'Modify Portal Content' permission")
+    check_permission(permissions.ModifyPortalContent, context)
 
     payload = json.loads(request.BODY)
     id = str(uuid.uuid4())
@@ -223,11 +223,10 @@ def create(context, request):
         url=connector.absolute_url(),
         )
 
-@router.add_route("/xmldirector/set_metadata", "set_metadat", methods=["POST"])
+@router.add_route('/xmldirector/set_metadata', 'xmldirector/set_metadata', methods=['POST'])
 def set_metadata(context, request):
 
-    if not getSecurityManager().checkPermission("Modify Portal Content", context):
-        raise Unauthorized("You don't have the 'Modify Portal Content' permission")
+    check_permission(permissions.ModifyPortalContent, context)
 
     payload = json.loads(request.BODY)
 
