@@ -50,7 +50,8 @@ pprint.pprint(data)
 
 
 
-result = requests.get(url + '/@@API/xmldirector/delete/', auth=HTTPBasicAuth(user, password), headers=headers,data=json.dumps(payload))
-data = result.json()
-pprint.pprint(data)
+#result = requests.get(url + '/@@API/xmldirector/delete/', auth=HTTPBasicAuth(user, password), headers=headers,data=json.dumps(payload))
+#data = result.json()
+#pprint.pprint(data)
 
+print url

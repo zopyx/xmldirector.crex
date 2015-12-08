@@ -14,6 +14,7 @@ import uuid
 import datetime
 import tempfile
 import requests
+import fs.zipfs
 
 import plone.api
 from zope.component import getUtility
@@ -120,12 +121,31 @@ def convert(context, request):
         fp.write(request.form['file'].read())
         
     zip_out = convert_crex(zip_tmp)
+
+    import pdb; pdb.set_trace() 
+    handle = context.webdav_handle()
+    target_root_dir = 'current'
+    if handle.exists(target_root_dir):
+        handle.removedir(target_root_dir, recursive=True, force=True)
+    handle.makedir(target_root_dir)
+    with fs.zipfs.ZipFS(zip_out, 'r') as zip_in:
+        for name in zip_in.walkfiles():
+            target_path = '{}/{}'.format(target_root_dir, name.replace('/result/', ''))
+            out_data = zip_in.open(name, 'rb').read()
+            target_dir = os.path.dirname(target_path)
+            if not handle.exists(target_dir):
+                handle.makedir(target_dir, recursive=True)
+            with handle.open(target_path, 'rb') as fp_out:
+                with zip_in.open(name, 'rb') as fp_in:
+                    fp_out.write(fp_in.read())
+
     with open(zip_out, 'rb') as fp:
-        return dict(data=json.dumps(fp))
+        return dict(data=fp.read().encode('base64'))
 #    from ZPublisher.Iterators import filestream_iterator
 #    request.response.setHeader('content-type', 'application/zip')
 #    request.response.setHeader('content-length', str(os.path.getsize(zip_out)))
 #    return filestream_iterator(zip_out)
+
 
 @router.add_route('/xmldirector/search', 'xmldirector/search', methods=['GET'])
 def search(context, request):
@@ -172,7 +192,7 @@ def export_zip(context, request):
 @router.add_route('/xmldirector/delete', 'xmldirector/delete', methods=['GET'])
 def delete(context, request):
 
-    check_permission(permissions.ManageDelete, context)
+    check_permission(permissions.DeleteObjects, context)
 
     parent = context.aq_parent
     parent.manage_delObjects(context.getId())
@@ -212,6 +232,7 @@ def create(context, request):
         id=id,
         title=title,
         description=description)
+    connector.webdav_subpath = id
 
     if custom:
         annotations = IAnnotations(connector)
