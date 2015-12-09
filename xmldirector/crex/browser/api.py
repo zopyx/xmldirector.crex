@@ -391,6 +391,7 @@ class APIRoutes(object):
 
     @timed
     def api_create(self, context, request):
+        """ Create a new content object in Plone """
 
         check_permission(permissions.ModifyPortalContent, context)
         payload = decode_json_payload(request)
