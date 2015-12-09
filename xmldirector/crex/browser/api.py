@@ -366,6 +366,18 @@ class APIRoutes(object):
         annotations = IAnnotations(context)
         custom = annotations.get(ANNOTATION_KEY)
 
+        _api = list()
+        for item in self.routes:
+            url = '{}/@@API/{}'.format(context.absolute_url(), item[0])
+            methods = item[-1]['methods']
+            doc = item[2].__doc__
+            name = item[0]
+            _api.append(dict(
+                url=url,
+                methods=methods,
+                doc=doc,
+                name=name))
+
         return dict(
             id=context.getId(),
             title=context.Title(),
@@ -374,7 +386,8 @@ class APIRoutes(object):
             modified=context.modified().ISO8601(),
             subject=context.Subject(),
             creator=context.Creator(),
-            custom=custom)
+            custom=custom,
+            _api=_api)
 
     @timed
     def api_create(self, context, request):
