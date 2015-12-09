@@ -56,6 +56,22 @@ def sha256_fp(fp):
     return sha256.hexdigest()
 
 
+def store_zip(context, zip_filename, target_directory):
+
+    handle = context.webdav_handle()
+    if handle.exists(target_directory):
+        handle.removedir(target_directory, recursive=True, force=True)
+    handle.makedir(target_directory)
+    with fs.zipfs.ZipFS(zip_filename, 'r') as zip_in:
+        for name in zip_in.walkfiles():
+            target_path = '{}/{}'.format(target_directory, name.replace('/result/', ''))
+            target_dir = os.path.dirname(target_path)
+            if not handle.exists(target_dir):
+                handle.makedir(target_dir, recursive=True)
+            with handle.open(target_path, 'wb') as fp_out:
+                with zip_in.open(name, 'rb') as fp_in:
+                    fp_out.write(fp_in.read())
+
 
 def convert_crex(zip_path):
     ''' Send ZIP archive with content to be converted to C-Rex.
@@ -160,8 +176,6 @@ def store(context, request):
         with handle.open(target_path + '.sha256', 'rb') as fp:
             existing_sha256 = fp.read()
 
-    print existing_sha256
-    print sha256_digest
     if existing_sha256 != sha256_digest:
         with open(out_tmp, 'rb') as fp_out:
             with handle.open(target_path, 'wb') as fp_in:
@@ -173,6 +187,24 @@ def store(context, request):
     else:
         return dict(msg=u'Not saved, no modifications')
     
+@router.add_route('/xmldirector/convert2', 'xmldirector/convert2', methods=['GET'])
+def convert2(context, request):
+
+    check_permission(permissions.ModifyPortalContent, context)
+
+    handle = context.webdav_handle()
+    zip_tmp = tempfile.mktemp(suffix='.zip')
+    with fs.zipfs.ZipFS(zip_tmp, 'w') as zip_fp:
+        with zip_fp.open('word/index.docx', 'wb') as fp:
+            with handle.open('word/index.docx', 'rb') as fp_in:
+                fp.write(fp_in.read())
+            
+        
+    zip_out = convert_crex(zip_tmp)
+    store_zip(context, zip_out, 'current')
+
+    with open(zip_out, 'rb') as fp:
+        return dict(data=fp.read().encode('base64'))
 
 @router.add_route('/xmldirector/convert', 'xmldirector/convert', methods=['POST'])
 def convert(context, request):
@@ -184,22 +216,7 @@ def convert(context, request):
         fp.write(request.form['file'].read())
         
     zip_out = convert_crex(zip_tmp)
-
-    handle = context.webdav_handle()
-    target_root_dir = 'current'
-    if handle.exists(target_root_dir):
-        handle.removedir(target_root_dir, recursive=True, force=True)
-    handle.makedir(target_root_dir)
-    with fs.zipfs.ZipFS(zip_out, 'r') as zip_in:
-        for name in zip_in.walkfiles():
-            target_path = '{}/{}'.format(target_root_dir, name.replace('/result/', ''))
-            out_data = zip_in.open(name, 'rb').read()
-            target_dir = os.path.dirname(target_path)
-            if not handle.exists(target_dir):
-                handle.makedir(target_dir, recursive=True)
-            with handle.open(target_path, 'wb') as fp_out:
-                with zip_in.open(name, 'rb') as fp_in:
-                    fp_out.write(fp_in.read())
+    store_zip(context, zip_out, 'current')
 
     with open(zip_out, 'rb') as fp:
         return dict(data=fp.read().encode('base64'))
@@ -298,6 +315,7 @@ def create(context, request):
         annotations[ANNOTATION_KEY] = custom
 
     IPersistentLogger(connector).log('created', details=payload)
+    request.response.setStatus(201)
     return dict(
         id=id,
         url=connector.absolute_url(),

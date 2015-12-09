@@ -37,6 +37,7 @@ print '-'*80
 print 'CREATE'
 result = requests.post(url + '/@@API/xmldirector/create', auth=HTTPBasicAuth(user, password), headers=headers,data=json.dumps(payload))
 verify_result(result)
+print result
 data = result.json()
 id = data['id']
 url = data['url']
@@ -87,6 +88,13 @@ verify_result(result)
 data = result.json()
 pprint.pprint(data)
 
+print '-'*80
+print 'CONVERT2'
+result = requests.get(url + '/@@API/xmldirector/convert2/', auth=HTTPBasicAuth(user, password))
+verify_result(result)
+data = result.json()
+pprint.pprint(data)
+
 #print '-'*80
 #print 'CONVERT'
 #files = {'file': open('sample.zip', 'rb')}
@@ -96,10 +104,10 @@ pprint.pprint(data)
 #pprint.pprint(data)
 
 
-#print '-'*80
-#print 'DELETE'
-#result = requests.get(url + '/@@API/xmldirector/delete/', auth=HTTPBasicAuth(user, password), headers=headers,data=json.dumps(payload))
-#verify_result(result)
-#data = result.json()
-#pprint.pprint(data)
+print '-'*80
+print 'DELETE'
+result = requests.get(url + '/@@API/xmldirector/delete/', auth=HTTPBasicAuth(user, password), headers=headers,data=json.dumps(payload))
+verify_result(result)
+data = result.json()
+pprint.pprint(data)
 
