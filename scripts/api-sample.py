@@ -84,7 +84,7 @@ print '-'*80
 print 'UPLOAD GET'
 print url
 payload = dict(
-    files=['word/index.docx']
+    files=['word/*']
 )
 result = requests.post(url + '/@@API/xmldirector/get', auth=HTTPBasicAuth(user, password), data=json.dumps(payload), headers=headers)
 verify_result(result)

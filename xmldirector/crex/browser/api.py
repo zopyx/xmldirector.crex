@@ -15,6 +15,7 @@ import hashlib
 import datetime
 import tempfile
 import requests
+import fnmatch
 import fs.zipfs
 
 import plone.api
@@ -38,16 +39,20 @@ from zopyx.plone.persistentlogger.logger import IPersistentLogger
 
 ANNOTATION_KEY = 'xmldirector.plonecore.crex'
 
+
 class CRexConversionError(Exception):
-    pass
+    """ A generic C-Rex error """
 
 
 def check_permission(permission, context):
+    """ Check the given Zope permission against a context object """
 
     if not getSecurityManager().checkPermission(permission, context):
         raise Unauthorized('You don\'t have the \'{}\' permission'.format(permission))
 
+
 def decode_json_payload(request):
+    """ Extract JSON data from the body of a Zope request """
 
     body = getattr(request, 'BODY', None)
     if not body:
@@ -59,11 +64,13 @@ def decode_json_payload(request):
         raise ValueError(u'Request body could not be decoded as JSON')
 
 
-def sha256_fp(fp):
+def sha256_fp(fp, blocksize=2**20):
+    """ Calculate SHA256 hash for an open file(handle) """
+
     fp.seek(0)
     sha256 = hashlib.sha256()
     while True:
-        data = fp.read(2**20)
+        data = fp.read(blocksize)
         if not data:
             break
         sha256.update(data)
@@ -71,6 +78,7 @@ def sha256_fp(fp):
 
 
 def store_zip(context, zip_filename, target_directory):
+    """ Unzip a ZIP file within the given target directory """
 
     handle = context.webdav_handle()
     if handle.exists(target_directory):
@@ -88,9 +96,9 @@ def store_zip(context, zip_filename, target_directory):
 
 
 def convert_crex(zip_path):
-    ''' Send ZIP archive with content to be converted to C-Rex.
+    """ Send ZIP archive with content to be converted to C-Rex.
         Returns name of ZIP file with converted resources.
-    '''
+    """
 
     ts = time.time()
     registry = getUtility(IRegistry)
@@ -154,6 +162,21 @@ def convert_crex(zip_path):
             raise CRexConversionError(msg)
 
 
+
+def timed(method):
+    """ A timing decorator """
+
+    def timed(self, context, request):
+        path = context.absolute_url(1)
+        ts = time.time()
+        result = method(self, context, request)
+        te = time.time()
+        s = u'{}(\'{}\'): {:2.6f} seconds'.format(method.__name__, path, te-ts)
+        LOG.info(s)
+        return result
+    return timed
+
+
 class APIRoutes(object):
     interface.implements(IRouteProvider)
 
@@ -177,29 +200,39 @@ class APIRoutes(object):
         ]
 
 
+    @timed
     def api_get(self, context, request):
 
         check_permission(permissions.ModifyPortalContent, context)
-
         json_data = decode_json_payload(request)
+
+        if not 'files' in json_data:
+            raise ValueError(u'JSON structure has no \'files\' field')
+
         files = json_data['files']
 
         handle = context.webdav_handle()
         zip_out = tempfile.mktemp(suffix='.zip')
         with fs.zipfs.ZipFS(zip_out, 'w') as zip_handle:
-            for name in files:
-                if not handle.exists(name):
-                    raise ValueError(u'Requested file "{}" does not exist'.format(name))
-            with handle.open(name, 'rb') as fp_in:
-                with zip_handle.open(name, 'wb') as fp_out:
-                    fp_out.write(fp_in.read())
+            for name in handle.walkfiles():
+                if name.startswith('/'):
+                    name = name[1:]
+                for fname in files:
+                    if fnmatch.fnmatch(name, fname):
+                        with handle.open(name, 'rb') as fp_in:
+                            with zip_handle.open(name, 'wb') as fp_out:
+                                fp_out.write(fp_in.read())
+                        break
+
         with open(zip_out, 'rb') as fp:
             return dict(file=fp.read().encode('base64'))
 
 
+    @timed
     def api_store(self, context, request):
 
         check_permission(permissions.ModifyPortalContent, context)
+        IPersistentLogger(context).log('store')
 
         original_fn = os.path.basename(request.form['file'].filename)
 
@@ -233,9 +266,11 @@ class APIRoutes(object):
             return dict(msg=u'Not saved, no modifications')
         
 
+    @timed
     def api_convert2(self, context, request):
 
         check_permission(permissions.ModifyPortalContent, context)
+        IPersistentLogger(context).log('convert2')
 
         handle = context.webdav_handle()
         zip_tmp = tempfile.mktemp(suffix='.zip')
@@ -251,9 +286,11 @@ class APIRoutes(object):
         with open(zip_out, 'rb') as fp:
             return dict(data=fp.read().encode('base64'))
 
+    @timed
     def api_convert(self, context, request):
 
         check_permission(permissions.ModifyPortalContent, context)
+        IPersistentLogger(context).log('convert')
 
         zip_tmp = tempfile.mktemp(suffix='.zip')
         with open(zip_tmp, 'wb') as fp:
@@ -265,7 +302,7 @@ class APIRoutes(object):
         with open(zip_out, 'rb') as fp:
             return dict(data=fp.read().encode('base64'))
 
-
+    @timed
     def api_search(self, context, request):
 
         check_permission(permissions.View, context)
@@ -285,6 +322,7 @@ class APIRoutes(object):
                 modified=brain.modified.ISO8601()))
         return dict(items=items)
 
+    @timed
     def api_export_zip(self, context, request):
         
         check_permission(permissions.View, context)
@@ -305,6 +343,7 @@ class APIRoutes(object):
         self.request.response.write('DONE')
 
 
+    @timed
     def api_delete(self, context, request):
 
         check_permission(permissions.DeleteObjects, context)
@@ -313,6 +352,7 @@ class APIRoutes(object):
         parent.manage_delObjects(context.getId())
         return dict()
 
+    @timed
     def api_get_metadata(self, context, request):
 
         check_permission(permissions.View, context)
@@ -330,6 +370,7 @@ class APIRoutes(object):
             creator=context.Creator(),
             custom=custom)
 
+    @timed
     def api_create(self, context, request):
 
         check_permission(permissions.ModifyPortalContent, context)
@@ -359,11 +400,12 @@ class APIRoutes(object):
             url=connector.absolute_url(),
             )
 
+    @timed
     def api_set_metadata(self, context, request):
 
         check_permission(permissions.ModifyPortalContent, context)
         payload = decode_json_payload(request)
-
+        IPersistentLogger(context).log('set_metadata', details=payload)
 
         title = payload.get('title')
         if title:
