@@ -18,6 +18,7 @@ import requests
 import fs.zipfs
 
 import plone.api
+from zope import interface
 from zope.component import getUtility
 from zope.annotation.interfaces import IAnnotations
 from Products.CMFCore import permissions
@@ -25,6 +26,7 @@ from AccessControl import Unauthorized
 from AccessControl import getSecurityManager
 from plone.registry.interfaces import IRegistry
 from plone.jsonapi.core import router
+from plone.jsonapi.core.interfaces import IRouteProvider
 
 from xmldirector.crex.logger import LOG
 from xmldirector.crex.interfaces import ICRexSettings
@@ -44,6 +46,18 @@ def check_permission(permission, context):
 
     if not getSecurityManager().checkPermission(permission, context):
         raise Unauthorized('You don\'t have the \'{}\' permission'.format(permission))
+
+def decode_json_payload(request):
+
+    body = getattr(request, 'BODY', None)
+    if not body:
+        raise ValueError(u'Request does not contain body data')
+
+    try:
+        return json.loads(body)
+    except ValueError:
+        raise ValueError(u'Request body could not be decoded as JSON')
+
 
 def sha256_fp(fp):
     fp.seek(0)
@@ -140,209 +154,232 @@ def convert_crex(zip_path):
             raise CRexConversionError(msg)
 
 
-@router.add_route('/xmldirector/get', 'xmldirector/get', methods=['GET'])
-def get(context, request):
+class APIRoutes(object):
+    interface.implements(IRouteProvider)
 
-    check_permission(permissions.ModifyPortalContent, context)
+    def initialize(self, context, request):
+        self.request = request
+        self.context = context
 
-    handle = context.webdav_handle()
-    target_path = 'word/index.docx'
-    with handle.open(target_path, 'rb') as fp:
-        return dict(file=fp.read().encode('base64'))
+    @property
+    def routes(self):
+        return [
+            ('/xmldirector/get', 'xmldirector/get', self.api_get,  dict(methods=['POST'])),
+            ('/xmldirector/store', 'xmldirector/store', self.api_store, dict(methods=['POST'])),
+            ('/xmldirector/convert2', 'xmldirector/convert2', self.api_convert2, dict(methods=['GET'])),
+            ('/xmldirector/convert', 'xmldirector/convert', self.api_convert, dict(methods=['POST'])),
+            ('/xmldirector/search', 'xmldirector/search', self.api_search, dict(methods=['GET'])),
+            ('/xmldirector/export-zip', 'xmldirector/export-zip', self.api_export_zip, dict(methods=['GET'])),
+            ('/xmldirector/delete', 'xmldirector/delete', self.api_delete, dict(methods=['GET'])),
+            ('/xmldirector/get_metadata', 'xmldirector/get_metadata', self.api_get_metadata, dict(methods=['GET'])),
+            ('/xmldirector/create', 'xmldirector/create', self.api_create, dict(methods=['POST'])),
+            ('/xmldirector/set_metadata', 'xmldirector/set_metadata', self.api_set_metadata, dict(methods=['POST'])),
+        ]
 
 
-@router.add_route('/xmldirector/store', 'xmldirector/store', methods=['POST'])
-def store(context, request):
+    def api_get(self, context, request):
 
-    check_permission(permissions.ModifyPortalContent, context)
+        check_permission(permissions.ModifyPortalContent, context)
 
-    original_fn = os.path.basename(request.form['file'].filename)
+        json_data = decode_json_payload(request)
+        files = json_data['files']
 
-    out_tmp = tempfile.mktemp(suffix=original_fn)
-    with open(out_tmp, 'wb') as fp:
-        fp.write(request.form['file'].read())
+        handle = context.webdav_handle()
+        zip_out = tempfile.mktemp(suffix='.zip')
+        with fs.zipfs.ZipFS(zip_out, 'w') as zip_handle:
+            for name in files:
+                if not handle.exists(name):
+                    raise ValueError(u'Requested file "{}" does not exist'.format(name))
+            with handle.open(name, 'rb') as fp_in:
+                with zip_handle.open(name, 'wb') as fp_out:
+                    fp_out.write(fp_in.read())
+        with open(zip_out, 'rb') as fp:
+            return dict(file=fp.read().encode('base64'))
 
-    sha256 = hashlib.sha256()
-    with open(out_tmp, 'rb') as fp:
-        sha256_digest = sha256_fp(fp)
 
-    handle = context.webdav_handle()
-    target_path = 'word/index.docx'
-    if not handle.exists(os.path.dirname(target_path)):
-        handle.makedir(os.path.dirname(target_path))
+    def api_store(self, context, request):
 
-    existing_sha256 = None
-    if handle.exists(target_path + '.sha256'):
-        with handle.open(target_path + '.sha256', 'rb') as fp:
-            existing_sha256 = fp.read()
+        check_permission(permissions.ModifyPortalContent, context)
 
-    if existing_sha256 != sha256_digest:
-        with open(out_tmp, 'rb') as fp_out:
-            with handle.open(target_path, 'wb') as fp_in:
-                fp_in.write(fp_out.read())
-            with handle.open(target_path + '.sha256', 'wb') as sha_fp:
-                sha_fp.write(sha256_digest)
-            
-        return dict(msg=u'Saved')
-    else:
-        return dict(msg=u'Not saved, no modifications')
-    
-@router.add_route('/xmldirector/convert2', 'xmldirector/convert2', methods=['GET'])
-def convert2(context, request):
+        original_fn = os.path.basename(request.form['file'].filename)
 
-    check_permission(permissions.ModifyPortalContent, context)
+        out_tmp = tempfile.mktemp(suffix=original_fn)
+        with open(out_tmp, 'wb') as fp:
+            fp.write(request.form['file'].read())
 
-    handle = context.webdav_handle()
-    zip_tmp = tempfile.mktemp(suffix='.zip')
-    with fs.zipfs.ZipFS(zip_tmp, 'w') as zip_fp:
-        with zip_fp.open('word/index.docx', 'wb') as fp:
-            with handle.open('word/index.docx', 'rb') as fp_in:
-                fp.write(fp_in.read())
-            
+        sha256 = hashlib.sha256()
+        with open(out_tmp, 'rb') as fp:
+            sha256_digest = sha256_fp(fp)
+
+        handle = context.webdav_handle()
+        target_path = 'word/index.docx'
+        if not handle.exists(os.path.dirname(target_path)):
+            handle.makedir(os.path.dirname(target_path))
+
+        existing_sha256 = None
+        if handle.exists(target_path + '.sha256'):
+            with handle.open(target_path + '.sha256', 'rb') as fp:
+                existing_sha256 = fp.read()
+
+        if existing_sha256 != sha256_digest:
+            with open(out_tmp, 'rb') as fp_out:
+                with handle.open(target_path, 'wb') as fp_in:
+                    fp_in.write(fp_out.read())
+                with handle.open(target_path + '.sha256', 'wb') as sha_fp:
+                    sha_fp.write(sha256_digest)
+                
+            return dict(msg=u'Saved')
+        else:
+            return dict(msg=u'Not saved, no modifications')
         
-    zip_out = convert_crex(zip_tmp)
-    store_zip(context, zip_out, 'current')
 
-    with open(zip_out, 'rb') as fp:
-        return dict(data=fp.read().encode('base64'))
+    def api_convert2(self, context, request):
 
-@router.add_route('/xmldirector/convert', 'xmldirector/convert', methods=['POST'])
-def convert(context, request):
+        check_permission(permissions.ModifyPortalContent, context)
 
-    check_permission(permissions.ModifyPortalContent, context)
+        handle = context.webdav_handle()
+        zip_tmp = tempfile.mktemp(suffix='.zip')
+        with fs.zipfs.ZipFS(zip_tmp, 'w') as zip_fp:
+            with zip_fp.open('word/index.docx', 'wb') as fp:
+                with handle.open('word/index.docx', 'rb') as fp_in:
+                    fp.write(fp_in.read())
+                
+            
+        zip_out = convert_crex(zip_tmp)
+        store_zip(context, zip_out, 'current')
 
-    zip_tmp = tempfile.mktemp(suffix='.zip')
-    with open(zip_tmp, 'wb') as fp:
-        fp.write(request.form['file'].read())
+        with open(zip_out, 'rb') as fp:
+            return dict(data=fp.read().encode('base64'))
+
+    def api_convert(self, context, request):
+
+        check_permission(permissions.ModifyPortalContent, context)
+
+        zip_tmp = tempfile.mktemp(suffix='.zip')
+        with open(zip_tmp, 'wb') as fp:
+            fp.write(request.form['file'].read())
+            
+        zip_out = convert_crex(zip_tmp)
+        store_zip(context, zip_out, 'current')
+
+        with open(zip_out, 'rb') as fp:
+            return dict(data=fp.read().encode('base64'))
+
+
+    def api_search(self, context, request):
+
+        check_permission(permissions.View, context)
+
+        catalog = plone.api.portal.get_tool('portal_catalog')
+        query = dict(portal_type='xmldirector.plonecore.connector')
+        brains = catalog(**query)
+        items = list()
+        for brain in brains:
+            items.append(dict(
+                id=brain.getId,
+                path=brain.getPath(),
+                url=brain.getURL(),
+                title=brain.Title,
+                creator=brain.Creator,
+                created=brain.created.ISO8601(),
+                modified=brain.modified.ISO8601()))
+        return dict(items=items)
+
+    def api_export_zip(self, context, request):
         
-    zip_out = convert_crex(zip_tmp)
-    store_zip(context, zip_out, 'current')
+        check_permission(permissions.View, context)
 
-    with open(zip_out, 'rb') as fp:
-        return dict(data=fp.read().encode('base64'))
+        path = request.form.get('path')
+        if not path:
+            raise ValueError('``path`` parameter missing')
 
+        obj = context.restrictedTraverse(path, None)
+        if obj is None:
+            raise ValueError('Unable to retrieve object ({})'.format(path))
 
-@router.add_route('/xmldirector/search', 'xmldirector/search', methods=['GET'])
-def search(context, request):
+        dirs = request.form.get('dirs', '')
 
-    check_permission(permissions.View, context)
-
-    catalog = plone.api.portal.get_tool('portal_catalog')
-    query = dict(portal_type='xmldirector.plonecore.connector')
-    brains = catalog(**query)
-    items = list()
-    for brain in brains:
-        items.append(dict(
-            id=brain.getId,
-            path=brain.getPath(),
-            url=brain.getURL(),
-            title=brain.Title,
-            creator=brain.Creator,
-            created=brain.created.ISO8601(),
-            modified=brain.modified.ISO8601()))
-    return dict(items=items)
+        view = connector_view(request=request, context=context)
+        view.zip_export(dirs=dirs, download=True)
+        self.request.response.setStatus(200)
+        self.request.response.write('DONE')
 
 
-@router.add_route('/xmldirector/export-zip', 'xmldirector/export-zip', methods=['GET'])
-def export_zip(context, request):
-    
-    check_permission(permissions.View, context)
+    def api_delete(self, context, request):
 
-    path = request.form.get('path')
-    if not path:
-        raise ValueError('``path`` parameter missing')
+        check_permission(permissions.DeleteObjects, context)
 
-    obj = context.restrictedTraverse(path, None)
-    if obj is None:
-        raise ValueError('Unable to retrieve object ({})'.format(path))
+        parent = context.aq_parent
+        parent.manage_delObjects(context.getId())
+        return dict()
 
-    dirs = request.form.get('dirs', '')
+    def api_get_metadata(self, context, request):
 
-    view = connector_view(request=request, context=context)
-    view.zip_export(dirs=dirs, download=True)
-    self.request.response.setStatus(200)
-    self.request.response.write('DONE')
+        check_permission(permissions.View, context)
 
-
-@router.add_route('/xmldirector/delete', 'xmldirector/delete', methods=['GET'])
-def delete(context, request):
-
-    check_permission(permissions.DeleteObjects, context)
-
-    parent = context.aq_parent
-    parent.manage_delObjects(context.getId())
-    return dict()
-
-@router.add_route('/xmldirector/get_metadata', 'xmldirector/get_metadata', methods=['GET'])
-def get_metadata(context, request):
-
-    check_permission(permissions.View, context)
-
-    annotations = IAnnotations(context)
-    custom = annotations.get(ANNOTATION_KEY)
-
-    return dict(
-        id=context.getId(),
-        title=context.Title(),
-        description=context.Description(),
-        created=context.created().ISO8601(),
-        modified=context.modified().ISO8601(),
-        subject=context.Subject(),
-        creator=context.Creator(),
-        custom=custom)
-
-@router.add_route('/xmldirector/create', 'xmldirector/create', methods=['POST'])
-def create(context, request):
-
-    check_permission(permissions.ModifyPortalContent, context)
-
-    payload = json.loads(request.BODY)
-    id = str(uuid.uuid4())
-    title = payload.get('title')
-    description = payload.get('description')
-    custom = payload.get('custom')
-
-    connector = plone.api.content.create(type='xmldirector.plonecore.connector',
-        container=context,
-        id=id,
-        title=title,
-        description=description)
-    connector.webdav_subpath = id
-    handle = connector.webdav_handle(create_if_not_existing=True)
-
-    if custom:
-        annotations = IAnnotations(connector)
-        annotations[ANNOTATION_KEY] = custom
-
-    IPersistentLogger(connector).log('created', details=payload)
-    request.response.setStatus(201)
-    return dict(
-        id=id,
-        url=connector.absolute_url(),
-        )
-
-@router.add_route('/xmldirector/set_metadata', 'xmldirector/set_metadata', methods=['POST'])
-def set_metadata(context, request):
-
-    check_permission(permissions.ModifyPortalContent, context)
-
-    payload = json.loads(request.BODY)
-
-    title = payload.get('title')
-    if title:
-        context.setTitle(title)
-
-    description = payload.get('description')
-    if description:
-        context.setDescription(description)
-    
-    subject = payload.get('subject')
-    if subject:
-        context.setSubject(subject)
-
-    custom = payload.get('custom')
-    if custom:
         annotations = IAnnotations(context)
-        annotations[ANNOTATION_KEY] = custom
+        custom = annotations.get(ANNOTATION_KEY)
 
-    return dict()
+        return dict(
+            id=context.getId(),
+            title=context.Title(),
+            description=context.Description(),
+            created=context.created().ISO8601(),
+            modified=context.modified().ISO8601(),
+            subject=context.Subject(),
+            creator=context.Creator(),
+            custom=custom)
+
+    def api_create(self, context, request):
+
+        check_permission(permissions.ModifyPortalContent, context)
+        payload = decode_json_payload(request)
+
+        id = str(uuid.uuid4())
+        title = payload.get('title')
+        description = payload.get('description')
+        custom = payload.get('custom')
+
+        connector = plone.api.content.create(type='xmldirector.plonecore.connector',
+            container=context,
+            id=id,
+            title=title,
+            description=description)
+        connector.webdav_subpath = id
+        handle = connector.webdav_handle(create_if_not_existing=True)
+
+        if custom:
+            annotations = IAnnotations(connector)
+            annotations[ANNOTATION_KEY] = custom
+
+        IPersistentLogger(connector).log('created', details=payload)
+        request.response.setStatus(201)
+        return dict(
+            id=id,
+            url=connector.absolute_url(),
+            )
+
+    def api_set_metadata(self, context, request):
+
+        check_permission(permissions.ModifyPortalContent, context)
+        payload = decode_json_payload(request)
+
+
+        title = payload.get('title')
+        if title:
+            context.setTitle(title)
+
+        description = payload.get('description')
+        if description:
+            context.setDescription(description)
+        
+        subject = payload.get('subject')
+        if subject:
+            context.setSubject(subject)
+
+        custom = payload.get('custom')
+        if custom:
+            annotations = IAnnotations(context)
+            annotations[ANNOTATION_KEY] = custom
+
+        return dict()

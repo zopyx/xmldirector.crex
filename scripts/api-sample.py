@@ -28,14 +28,14 @@ payload = dict(
 
 print '-'*80
 print 'SEARCH'
-result = requests.get(url + '/@@API/xmldirector/search', auth=HTTPBasicAuth(user, password), headers=headers,data=json.dumps(payload))
+result = requests.get(url + '/@@API/xmldirector/search', auth=HTTPBasicAuth(user, password), headers=headers)
 verify_result(result)
 data = result.json()
 pprint.pprint(data)
 
 print '-'*80
 print 'CREATE'
-result = requests.post(url + '/@@API/xmldirector/create', auth=HTTPBasicAuth(user, password), headers=headers,data=json.dumps(payload))
+result = requests.post(url + '/@@API/xmldirector/create', auth=HTTPBasicAuth(user, password), headers=headers, data=json.dumps(payload))
 verify_result(result)
 print result
 data = result.json()
@@ -46,7 +46,7 @@ print (url)
 
 print '-'*80
 print 'GET_METADATA'
-result = requests.get(url + '/@@API/xmldirector/get_metadata/', auth=HTTPBasicAuth(user, password), data=json.dumps(payload))
+result = requests.get(url + '/@@API/xmldirector/get_metadata/', auth=HTTPBasicAuth(user, password))
 verify_result(result)
 data = result.json()
 pprint.pprint(data)
@@ -65,7 +65,7 @@ print result
 
 print '-'*80
 print 'GET_METADATA'
-result = requests.get(url + '/@@API/xmldirector/get_metadata/', auth=HTTPBasicAuth(user, password), data=json.dumps(payload))
+result = requests.get(url + '/@@API/xmldirector/get_metadata/', auth=HTTPBasicAuth(user, password))
 verify_result(result)
 data = result.json()
 pprint.pprint(data)
@@ -83,7 +83,10 @@ for i in range(1,3):
 print '-'*80
 print 'UPLOAD GET'
 print url
-result = requests.get(url + '/@@API/xmldirector/get', auth=HTTPBasicAuth(user, password))
+payload = dict(
+    files=['word/index.docx']
+)
+result = requests.post(url + '/@@API/xmldirector/get', auth=HTTPBasicAuth(user, password), data=json.dumps(payload), headers=headers)
 verify_result(result)
 data = result.json()
 pprint.pprint(data)

@@ -31,4 +31,11 @@
         permission="cmf.ManagePortal"
     />
 
+    <!-- Extension point for custom routes -->
+    <utility
+        name="xmldirector.crex.routes"
+        provides="plone.jsonapi.core.interfaces.IRouteProvider"
+        factory=".api.APIRoutes" 
+    />
+
 </configure>
