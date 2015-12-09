@@ -33,6 +33,7 @@ from xmldirector.crex.logger import LOG
 from xmldirector.crex.interfaces import ICRexSettings
 
 from xmldirector.plonecore.browser.connector import Connector as connector_view
+from xmldirector.plonecore.interfaces import IWebdavHandle
 
 from zopyx.plone.persistentlogger.logger import IPersistentLogger
 
@@ -348,6 +349,11 @@ class APIRoutes(object):
 
         check_permission(permissions.DeleteObjects, context)
 
+        util = getUtility(IWebdavHandle)
+
+        handle = util.webdav_handle()
+        handle.removedir(context.webdav_subpath, True, True)
+
         parent = context.aq_parent
         parent.manage_delObjects(context.getId())
         return dict()
@@ -386,7 +392,8 @@ class APIRoutes(object):
             id=id,
             title=title,
             description=description)
-        connector.webdav_subpath = id
+
+        connector.webdav_subpath = 'plone-api-{}/{}'.format(plone.api.portal.get().getId(), id)
         handle = connector.webdav_handle(create_if_not_existing=True)
 
         if custom:
