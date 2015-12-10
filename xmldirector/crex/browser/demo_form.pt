@@ -10,8 +10,6 @@
 <metal:main fill-slot="content-core">
   <metal:content-core define-macro="content-core">
 
-      <pre tal:content="request/text" />
-
       <fieldset>
           <legend i18n:translate="">ZIP Upload for C-Rex</legend>
           <form method="POST" tal:attributes="action string:${context/absolute_url}/xmldirector-crex-convert" enctype="multipart/form-data">
