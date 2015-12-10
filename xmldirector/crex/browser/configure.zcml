@@ -82,5 +82,18 @@
         name="xmldirector-get"
     />
 
+    <plone:service
+      method="GET"
+        for="xmldirector.plonecore.connector.IConnector"
+        factory=".service.api_list"
+        name="xmldirector-list"
+    />
+
+    <plone:service
+      method="GET"
+        for="xmldirector.plonecore.connector.IConnector"
+        factory=".service.api_convert"
+        name="xmldirector-convert"
+    />
 
 </configure>

@@ -379,90 +379,34 @@ class api_get(BaseService):
             return dict(file=fp.read().encode('base64'))
 
 
-
-class XXXXAPIRoutes(object):
-    interface.implements(IRouteProvider)
-
-    def initialize(self, context, request):
-        self.request = request
-        self.context = context
-
-        
+class api_convert(BaseService):
 
     @timed
-    def api_convert2(self, context, request):
+    def render(self):
 
-        check_permission(permissions.ModifyPortalContent, context)
-        IPersistentLogger(context).log('convert2')
+        check_permission(permissions.ModifyPortalContent, self.context)
+        IPersistentLogger(self.context).log('convert')
 
-        handle = context.webdav_handle()
+        handle = self.context.webdav_handle()
         zip_tmp = tempfile.mktemp(suffix='.zip')
         with fs.zipfs.ZipFS(zip_tmp, 'w') as zip_fp:
             with zip_fp.open('word/index.docx', 'wb') as fp:
-                with handle.open('word/index.docx', 'rb') as fp_in:
+                with handle.open('src/word/index.docx', 'rb') as fp_in:
                     fp.write(fp_in.read())
-                
-            
+
         zip_out = convert_crex(zip_tmp)
-        store_zip(context, zip_out, 'current')
+        store_zip(self.context, zip_out, 'current')
 
         with open(zip_out, 'rb') as fp:
             return dict(data=fp.read().encode('base64'))
 
-    @timed
-    def api_convert(self, context, request):
 
-        check_permission(permissions.ModifyPortalContent, context)
-        IPersistentLogger(context).log('convert')
-
-        zip_tmp = tempfile.mktemp(suffix='.zip')
-        with open(zip_tmp, 'wb') as fp:
-            fp.write(request.form['file'].read())
-            
-        zip_out = convert_crex(zip_tmp)
-        store_zip(context, zip_out, 'current')
-
-        with open(zip_out, 'rb') as fp:
-            return dict(data=fp.read().encode('base64'))
+class api_list(BaseService):
 
     @timed
-    def api_search(self, context, request):
+    def render(self):
 
-        check_permission(permissions.View, context)
+        check_permission(permissions.View, self.context)
 
-        catalog = plone.api.portal.get_tool('portal_catalog')
-        query = dict(portal_type='xmldirector.plonecore.connector')
-        brains = catalog(**query)
-        items = list()
-        for brain in brains:
-            items.append(dict(
-                id=brain.getId,
-                path=brain.getPath(),
-                url=brain.getURL(),
-                title=brain.Title,
-                creator=brain.Creator,
-                created=brain.created.ISO8601(),
-                modified=brain.modified.ISO8601()))
-        return dict(items=items)
-
-    @timed
-    def api_export_zip(self, context, request):
-        
-        check_permission(permissions.View, context)
-
-        path = request.form.get('path')
-        if not path:
-            raise ValueError('``path`` parameter missing')
-
-        obj = context.restrictedTraverse(path, None)
-        if obj is None:
-            raise ValueError('Unable to retrieve object ({})'.format(path))
-
-        dirs = request.form.get('dirs', '')
-
-        view = connector_view(request=request, context=context)
-        view.zip_export(dirs=dirs, download=True)
-        self.request.response.setStatus(200)
-        self.request.response.write('DONE')
-
-
+        handle = self.context.webdav_handle()
+        return dict(files=list(handle.walkfiles()))

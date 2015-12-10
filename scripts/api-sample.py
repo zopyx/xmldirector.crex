@@ -121,6 +121,20 @@ verify_result(result)
 data = result.json()
 pprint.pprint(data)
 
+print '-'*80
+print 'LIST'
+result = send_request('GET', 'xmldirector-list', url=url)
+verify_result(result)
+data = result.json()
+pprint.pprint(data)
+
+print '-'*80
+print 'CONVERT'
+result = send_request('GET', 'xmldirector-convert', url=url)
+verify_result(result)
+data = result.json()
+pprint.pprint(data)
+
 
 print '-'*80
 print 'DELETE'
