@@ -31,51 +31,40 @@
         permission="cmf.ManagePortal"
     />
 
-    <!-- Extension point for custom routes -->
-    <utility
-        name="xmldirector.crex.routes"
-        provides="plone.jsonapi.core.interfaces.IRouteProvider"
-        factory=".api.APIRoutes" 
-    />
-
     <include package="plone.rest" file="configure.zcml" />
-    <plone:service
-      method="PATCH"
-        for="xmldirector.plonecore.connector.IConnector"
-        factory=".service.Patch"
-    />
-    <plone:service
-      method="GET"
-        for="xmldirector.plonecore.connector.IConnector"
-        factory=".service.Patch"
-    />
-    <plone:service
-      method="POST"
-        for="xmldirector.plonecore.connector.IConnector"
-        factory=".service.Patch"
-    />
+
     <plone:service
       method="PUT"
-        for="xmldirector.plonecore.connector.IConnector"
-        factory=".service.Patch"
-    />
-    <plone:service
-      method="PUT"
-        for="xmldirector.plonecore.connector.IConnector"
-        factory=".service.Patch2"
-        name="xxx"
-    />
-    <plone:service
-      method="GET"
-        for="xmldirector.plonecore.connector.IConnector"
-        factory=".service.GET"
-        name="get-download"
-    />
-    <plone:service
-      method="POST"
-        for="xmldirector.plonecore.connector.IConnector"
-        factory=".service.POST"
-        name="post-upload"
+        for="*"
+        factory=".service.api_create"
+        name="xmldirector-create"
     />
 
+    <plone:service
+      method="GET"
+        for="*"
+        factory=".service.api_search"
+        name="xmldirector-search"
+    />
+
+    <plone:service
+      method="GET"
+        for="xmldirector.plonecore.connector.IConnector"
+        factory=".service.api_get_metadata"
+        name="xmldirector-get-metadata"
+    />
+
+    <plone:service
+      method="POST"
+        for="xmldirector.plonecore.connector.IConnector"
+        factory=".service.api_set_metadata"
+        name="xmldirector-set-metadata"
+    />
+
+    <plone:service
+      method="DELETE"
+        for="xmldirector.plonecore.connector.IConnector"
+        factory=".service.api_delete"
+        name="xmldirector-delete"
+    />
 </configure>

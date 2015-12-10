@@ -12,22 +12,26 @@ def verify_result(result):
         print data_json['error']
         raise RuntimeError()
 
-url = 'http://dev1.veit-schiele.de:12020/Plone'
+base_url = 'http://dev1.veit-schiele.de:12020/Plone'
 user = 'admin'
 password = 'admin'
-json_headers = {'content-type': 'application/json'}
+all_headers = {'content-type': 'application/json', 'accept' : 'application/json'}
 
-def send_request(method='GET', path='/@@API', data=None, files=None, headers={}):
+def send_request(method='GET', path='/@@API', data=None, files=None, headers={}, folder=None, url=None):
 
     f = getattr(requests, method.lower())
-    api_url = '{}/{}'.format(url, path)
-    api_headers = headers
+    api_url = url if url else base_url
+    if folder:
+        api_url += folder
+    api_url += '/{}'.format(path)
+    request_headers = all_headers.copy()
+    request_headers.update(headers)
+    print method, api_url
     if data:
-        api_headers.update(json_headers)
         result = f(
             api_url, 
             auth=HTTPBasicAuth(user, password),
-            headers=api_headers,
+            headers=request_headers,
             data=data)
     elif files:
         result = f(
@@ -38,8 +42,8 @@ def send_request(method='GET', path='/@@API', data=None, files=None, headers={})
         result = f(
             api_url, 
             auth=HTTPBasicAuth(user, password),
-            headers=api_headers)
-
+            headers=request_headers)
+    print result
     return result
 
 
@@ -54,14 +58,14 @@ payload = dict(
 
 print '-'*80
 print 'SEARCH'
-result = send_request('GET', '/@@API/xmldirector/search')
+result = send_request('GET', 'xmldirector-search')
 verify_result(result)
 data = result.json()
 pprint.pprint(data)
 
 print '-'*80
 print 'CREATE'
-result = send_request('POST', '/@@API/xmldirector/create', data=json.dumps(payload))
+result = send_request('PUT', 'xmldirector-create', folder='/folder', data=json.dumps(payload))
 verify_result(result)
 print result
 data = result.json()
@@ -70,9 +74,10 @@ url = data['url']
 print(id)
 print (url)
 
+
 print '-'*80
 print 'GET_METADATA'
-result = send_request('GET', '/@@API/xmldirector/get_metadata/')
+result = send_request('GET', 'xmldirector-get-metadata', url=url)
 verify_result(result)
 data = result.json()
 pprint.pprint(data)
@@ -84,17 +89,21 @@ payload = dict(
     title=u'new title: hello world',
     description=u'New description'
 )
-result = send_request('POST', '/@@API/xmldirector/set_metadata', data=json.dumps(payload))
+result = send_request('POST', 'xmldirector-set-metadata', data=json.dumps(payload), url=url)
 verify_result(result)
 print result
 
 
 print '-'*80
-print 'GET_METADATA'
-result = send_request('GET', '/@@API/xmldirector/get_metadata/')
+print 'DELETE'
+result = send_request('DELETE', 'xmldirector-delete', url=url)
 verify_result(result)
 data = result.json()
 pprint.pprint(data)
+
+import sys
+sys.exit(0)
+
 
 for i in range(1,3):
     print '-'*80
@@ -132,10 +141,4 @@ pprint.pprint(data)
 #pprint.pprint(data)
 
 
-print '-'*80
-print 'DELETE'
-result = send_request('GET', '/@@API/xmldirector/delete/')
-verify_result(result)
-data = result.json()
-pprint.pprint(data)
 

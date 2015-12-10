@@ -6,7 +6,7 @@
 
 import os
 import tempfile
-from xmldirector.crex.browser import api
+from xmldirector.crex.browser import service
 
 from Products.Five.browser import BrowserView
 
@@ -26,7 +26,7 @@ class Converter(BrowserView):
         basename, ext = os.path.splitext(basename)
         with open(zip_tmp, 'wb') as fp:
             fp.write(zf.read())
-        zip_out = api.convert_crex(zip_tmp)
+        zip_out = service.convert_crex(zip_tmp)
         with open(zip_out, 'rb') as fp:
             self.request.response.setHeader('content-type', 'application/zip')
             self.request.response.setHeader('content-disposition', 'attachment;filename={}'.format('{}-converted.zip'.format(basename)))
