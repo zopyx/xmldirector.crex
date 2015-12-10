@@ -103,7 +103,7 @@ print result
 for i in range(1,3):
     print '-'*80
     print 'UPLOAD DOCX'
-    files = ['sample.docx']
+    files = ['word/index.docx']
     print url
     result = send_request('POST', 'xmldirector-store', files=files, url=url)
     verify_result(result)

@@ -174,7 +174,8 @@ def timed(method):
         ts = time.time()
         result = method(self)
         te = time.time()
-        s = u'{}(\'{}\'): {:2.6f} seconds'.format(self.__class__.__name__, path, te-ts)
+        s = u'{:>25}(\'{}\')'.format(self.__class__.__name__, path)
+        s = s + u': {:2.6f} seconds'.format(te-ts)
         LOG.info(s)
         return result
     return timed
