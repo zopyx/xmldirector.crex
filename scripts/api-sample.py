@@ -1,7 +1,9 @@
 
 import pprint
 import json
+import tempfile
 import requests
+import fs.zipfs
 from requests.auth import HTTPBasicAuth
 
 
@@ -27,17 +29,22 @@ def send_request(method='GET', path='/@@API', data=None, files=None, headers={},
     request_headers = all_headers.copy()
     request_headers.update(headers)
     print method, api_url
+
+    if files:
+        zip_tmp = tempfile.mktemp(suffix='.zip')
+        with fs.zipfs.ZipFS(zip_tmp, 'w') as handle:
+            for fname in files:
+                with open(fname, 'rb') as fp_in:
+                    with handle.open(fname, 'wb') as fp_out:
+                        fp_out.write(fp_in.read())
+        data = json.dumps(dict(zip=open(zip_tmp, 'rb').read().encode('base64')))
+
     if data:
         result = f(
             api_url, 
             auth=HTTPBasicAuth(user, password),
             headers=request_headers,
             data=data)
-    elif files:
-        result = f(
-            api_url, 
-            auth=HTTPBasicAuth(user, password),
-            files=files)
     else:
         result = f(
             api_url, 
@@ -93,6 +100,27 @@ result = send_request('POST', 'xmldirector-set-metadata', data=json.dumps(payloa
 verify_result(result)
 print result
 
+for i in range(1,3):
+    print '-'*80
+    print 'UPLOAD DOCX'
+    files = ['sample.docx']
+    print url
+    result = send_request('POST', 'xmldirector-store', files=files, url=url)
+    verify_result(result)
+    data = result.json()
+    pprint.pprint(data)
+
+
+print '-'*80
+print 'UPLOAD GET'
+payload = dict(
+    files=['src/*']
+)
+result = send_request('POST', 'xmldirector-get', data=json.dumps(payload), url=url)
+verify_result(result)
+data = result.json()
+pprint.pprint(data)
+
 
 print '-'*80
 print 'DELETE'
@@ -105,25 +133,7 @@ import sys
 sys.exit(0)
 
 
-for i in range(1,3):
-    print '-'*80
-    print 'UPLOAD DOCX'
-    files = {'file': open('sample.docx', 'rb')}
-    print url
-    result = send_request('POST', '/@@API/xmldirector/store', files=files)
-    verify_result(result)
-    data = result.json()
-    pprint.pprint(data)
 
-print '-'*80
-print 'UPLOAD GET'
-payload = dict(
-    files=['word/*']
-)
-result = send_request('POST', '/@@API/xmldirector/get', data=json.dumps(payload))
-verify_result(result)
-data = result.json()
-pprint.pprint(data)
 
 #print '-'*80
 #print 'CONVERT2'

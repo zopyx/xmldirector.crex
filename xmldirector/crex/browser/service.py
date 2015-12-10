@@ -314,6 +314,71 @@ class api_delete(BaseService):
         return dict()
 
 
+class api_store(BaseService):
+
+    @timed
+    def render(self):
+        
+        check_permission(permissions.ModifyPortalContent, self.context)
+        IPersistentLogger(self.context).log('store')
+        payload = decode_json_payload(self.request)
+        webdav_handle = self.context.webdav_handle()
+
+        target_dir = 'src'
+        if webdav_handle.exists(target_dir):
+            webdav_handle.removedir(target_dir, force=True)
+        webdav_handle.makedir(target_dir)
+
+        # Write payload/data to ZIP file
+        zip_out = tempfile.mktemp(suffix='.zip')
+        with open(zip_out, 'wb') as fp:
+            fp.write(payload['zip'].decode('base64'))
+
+        # and unpack it        
+        with fs.zipfs.ZipFS(zip_out, 'r') as zip_handle:
+            for name in zip_handle.walkfiles():
+                dest_name = '{}/{}'.format(target_dir, name)
+                dest_dir = os.path.dirname(dest_name)
+                if not webdav_handle.exists(dest_dir):
+                    webdav_handle.makedir(dest_dir)
+                data = zip_handle.open(name, 'rb').read()
+                with webdav_handle.open(dest_name, 'wb') as fp:
+                    fp.write(data)
+                with webdav_handle.open(dest_name + '.sha256', 'wb') as fp:
+                    fp.write(hashlib.sha256(data).hexdigest())
+        return dict(msg=u'Saved')
+
+
+class api_get(BaseService):
+
+    @timed
+    def render(self):
+
+        check_permission(permissions.ModifyPortalContent, self.context)
+        json_data = decode_json_payload(self.request)
+
+        if not 'files' in json_data:
+            raise ValueError(u'JSON structure has no \'files\' field')
+
+        files = json_data['files']
+
+        handle = self.context.webdav_handle()
+        zip_out = tempfile.mktemp(suffix='.zip')
+        with fs.zipfs.ZipFS(zip_out, 'w') as zip_handle:
+            for name in handle.walkfiles():
+                if name.startswith('/'):
+                    name = name[1:]
+                for fname in files:
+                    if fnmatch.fnmatch(name, fname):
+                        with handle.open(name, 'rb') as fp_in:
+                            with zip_handle.open(name, 'wb') as fp_out:
+                                fp_out.write(fp_in.read())
+                        break
+
+        with open(zip_out, 'rb') as fp:
+            return dict(file=fp.read().encode('base64'))
+
+
 
 class XXXXAPIRoutes(object):
     interface.implements(IRouteProvider)
@@ -322,42 +387,6 @@ class XXXXAPIRoutes(object):
         self.request = request
         self.context = context
 
-    @timed
-    def api_store(self, context, request):
-
-        check_permission(permissions.ModifyPortalContent, context)
-        IPersistentLogger(context).log('store')
-
-        original_fn = os.path.basename(request.form['file'].filename)
-
-        out_tmp = tempfile.mktemp(suffix=original_fn)
-        with open(out_tmp, 'wb') as fp:
-            fp.write(request.form['file'].read())
-
-        sha256 = hashlib.sha256()
-        with open(out_tmp, 'rb') as fp:
-            sha256_digest = sha256_fp(fp)
-
-        handle = context.webdav_handle()
-        target_path = 'word/index.docx'
-        if not handle.exists(os.path.dirname(target_path)):
-            handle.makedir(os.path.dirname(target_path))
-
-        existing_sha256 = None
-        if handle.exists(target_path + '.sha256'):
-            with handle.open(target_path + '.sha256', 'rb') as fp:
-                existing_sha256 = fp.read()
-
-        if existing_sha256 != sha256_digest:
-            with open(out_tmp, 'rb') as fp_out:
-                with handle.open(target_path, 'wb') as fp_in:
-                    fp_in.write(fp_out.read())
-                with handle.open(target_path + '.sha256', 'wb') as sha_fp:
-                    sha_fp.write(sha256_digest)
-                
-            return dict(msg=u'Saved')
-        else:
-            return dict(msg=u'Not saved, no modifications')
         
 
     @timed

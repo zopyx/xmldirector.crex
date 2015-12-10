@@ -67,4 +67,20 @@
         factory=".service.api_delete"
         name="xmldirector-delete"
     />
+
+    <plone:service
+      method="POST"
+        for="xmldirector.plonecore.connector.IConnector"
+        factory=".service.api_store"
+        name="xmldirector-store"
+    />
+
+    <plone:service
+      method="POST"
+        for="xmldirector.plonecore.connector.IConnector"
+        factory=".service.api_get"
+        name="xmldirector-get"
+    />
+
+
 </configure>
