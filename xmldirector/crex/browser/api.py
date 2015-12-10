@@ -188,6 +188,7 @@ class APIRoutes(object):
     @property
     def routes(self):
         return [
+            ('/xmldirector/test', 'xmldirector/test', self.api_test,  dict(methods=['GET', 'PUT', 'DELETE', 'POST'])),
             ('/xmldirector/get', 'xmldirector/get', self.api_get,  dict(methods=['POST'])),
             ('/xmldirector/store', 'xmldirector/store', self.api_store, dict(methods=['POST'])),
             ('/xmldirector/convert2', 'xmldirector/convert2', self.api_convert2, dict(methods=['GET'])),
@@ -200,6 +201,9 @@ class APIRoutes(object):
             ('/xmldirector/set_metadata', 'xmldirector/set_metadata', self.api_set_metadata, dict(methods=['POST'])),
         ]
 
+    def api_test(self, context, request):
+        print request.REQUEST_METHOD
+        return dict(text='hello world')
 
     @timed
     def api_get(self, context, request):

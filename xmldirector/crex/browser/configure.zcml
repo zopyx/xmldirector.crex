@@ -38,4 +38,26 @@
         factory=".api.APIRoutes" 
     />
 
+    <include package="plone.rest" file="configure.zcml" />
+    <plone:service
+      method="PATCH"
+        for="xmldirector.plonecore.connector.IConnector"
+        factory=".service.Patch"
+    />
+    <plone:service
+      method="GET"
+        for="xmldirector.plonecore.connector.IConnector"
+        factory=".service.Patch"
+    />
+    <plone:service
+      method="POST"
+        for="xmldirector.plonecore.connector.IConnector"
+        factory=".service.Patch"
+    />
+    <plone:service
+      method="PUT"
+        for="xmldirector.plonecore.connector.IConnector"
+        factory=".service.Patch"
+    />
+
 </configure>
