@@ -59,5 +59,23 @@
         for="xmldirector.plonecore.connector.IConnector"
         factory=".service.Patch"
     />
+    <plone:service
+      method="PUT"
+        for="xmldirector.plonecore.connector.IConnector"
+        factory=".service.Patch2"
+        name="xxx"
+    />
+    <plone:service
+      method="GET"
+        for="xmldirector.plonecore.connector.IConnector"
+        factory=".service.GET"
+        name="get-download"
+    />
+    <plone:service
+      method="POST"
+        for="xmldirector.plonecore.connector.IConnector"
+        factory=".service.POST"
+        name="post-upload"
+    />
 
 </configure>
