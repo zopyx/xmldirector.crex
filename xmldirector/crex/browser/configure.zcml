@@ -101,6 +101,13 @@
     <plone:service
       method="GET"
         for="xmldirector.plonecore.connector.IConnector"
+        factory=".service.api_list_full"
+        name="xmldirector-list-full"
+    />
+
+    <plone:service
+      method="GET"
+        for="xmldirector.plonecore.connector.IConnector"
         factory=".service.api_convert"
         name="xmldirector-convert"
     />

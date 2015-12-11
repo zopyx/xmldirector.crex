@@ -129,6 +129,14 @@ data = result.json()
 pprint.pprint(data)
 
 print '-'*80
+print 'LIST-FULL'
+result = send_request('GET', 'xmldirector-list-full', url=url)
+verify_result(result)
+data = result.json()
+pprint.pprint(data)
+
+
+print '-'*80
 print 'CONVERT'
 result = send_request('GET', 'xmldirector-convert', url=url)
 open('convert.zip', 'wb').write(result.content)

@@ -442,3 +442,17 @@ class api_list(BaseService):
 
         handle = self.context.webdav_handle()
         return dict(files=list(handle.walkfiles()))
+
+class api_list_full(BaseService):
+
+    @timed
+    def render(self):
+
+        check_permission(permissions.View, self.context)
+
+        handle = self.context.webdav_handle()
+        result = list()
+        for dirname in handle.walkdirs():
+            for d in handle.ilistdirinfo(dirname, full=True):
+                result.append(d)
+        return result
