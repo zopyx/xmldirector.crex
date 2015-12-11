@@ -28,8 +28,6 @@ from ZPublisher.Iterators import filestream_iterator
 from AccessControl import Unauthorized
 from AccessControl import getSecurityManager
 from plone.registry.interfaces import IRegistry
-from plone.jsonapi.core import router
-from plone.jsonapi.core.interfaces import IRouteProvider
 
 from plone.rest import Service
 
@@ -206,7 +204,7 @@ class api_create(BaseService):
     @timed
     def render(self):
         """ Create a new content object in Plone """
-        print 'create'
+      
         check_permission(permissions.ModifyPortalContent, self.context)
         payload = decode_json_payload(self.request)
 
@@ -394,14 +392,17 @@ class api_get(BaseService):
             self.request.response.setHeader('content-length', str(os.path.getsize(zip_out)))
             self.request.response.setHeader('content-type', 'application/zip')
             self.request.response.setHeader('content-disposition', 'attachment; filename={}.zip'.format(self.context.getId()))
-            with open(zip_out, 'rb') as fp:
-                self.request.response.write(fp.read())
+            self.request.response.write(fp.read())
 
 
 class api_convert(BaseService):
 
     @timed
     def render(self):
+
+        from collective.taskqueue import taskqueue
+
+        task_id = taskqueue.add('{}/xmldirector-test'.format(plone.api.portal.get().absolute_url(1)))
 
         check_permission(permissions.ModifyPortalContent, self.context)
         IPersistentLogger(self.context).log('convert')
@@ -420,8 +421,7 @@ class api_convert(BaseService):
             self.request.response.setHeader('content-length', str(os.path.getsize(zip_out)))
             self.request.response.setHeader('content-type', 'application/zip')
             self.request.response.setHeader('content-disposition', 'attachment; filename={}.zip'.format(self.context.getId()))
-            with open(zip_out, 'rb') as fp:
-                self.request.response.write(fp.read())
+            self.request.response.write(fp.read())
 
 
 class api_list(BaseService):
@@ -433,3 +433,10 @@ class api_list(BaseService):
 
         handle = self.context.webdav_handle()
         return dict(files=list(handle.walkfiles()))
+
+
+class api_test(BaseService):
+
+    @timed
+    def render(self):
+        return dict(hello='world')

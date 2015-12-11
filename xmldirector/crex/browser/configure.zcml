@@ -8,6 +8,15 @@
     xmlns:plone="http://namespaces.plone.org/plone"
     >
 
+    <browser:page
+        name="xmldirector-test"
+        for="*"
+        class=".queue.Queue"
+        attribute="queue"
+        permission="cmf.ManagePortal"
+    />
+
+
     <!-- demo --> 
     <browser:page
         name="xmldirector-crex-form"
