@@ -21,7 +21,7 @@ class Converter(BrowserView):
 
         zf = self.request.form.get('zipfile')
         if not zf:
-            raise  ValueError('No  ZIP file uploaded?')
+            raise ValueError('No  ZIP file uploaded?')
 
         zip_tmp = tempfile.mktemp(suffix='.zip')
         basename = os.path.basename(zf.filename)
@@ -31,6 +31,8 @@ class Converter(BrowserView):
         zip_out = service.convert_crex(zip_tmp)
         with open(zip_out, 'rb') as fp:
             self.request.response.setHeader('content-type', 'application/zip')
-            self.request.response.setHeader('content-disposition', 'attachment;filename={}'.format('{}-converted.zip'.format(basename)))
-            self.request.response.setHeader('content-length', str(os.path.getsize(zip_out)))
+            self.request.response.setHeader(
+                'content-disposition', 'attachment;filename={}'.format('{}-converted.zip'.format(basename)))
+            self.request.response.setHeader(
+                'content-length', str(os.path.getsize(zip_out)))
             self.request.response.write(fp.read())

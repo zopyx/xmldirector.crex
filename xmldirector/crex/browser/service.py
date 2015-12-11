@@ -20,11 +20,9 @@ import fs.zipfs
 from contextlib import contextmanager
 
 import plone.api
-from zope import interface
 from zope.component import getUtility
 from zope.annotation.interfaces import IAnnotations
 from Products.CMFCore import permissions
-from ZPublisher.Iterators import filestream_iterator
 from AccessControl import Unauthorized
 from AccessControl import getSecurityManager
 from plone.registry.interfaces import IRegistry
@@ -34,7 +32,6 @@ from plone.rest import Service
 from xmldirector.crex.logger import LOG
 from xmldirector.crex.interfaces import ICRexSettings
 
-from xmldirector.plonecore.browser.connector import Connector as connector_view
 from xmldirector.plonecore.interfaces import IWebdavHandle
 
 from zopyx.plone.persistentlogger.logger import IPersistentLogger
@@ -51,7 +48,8 @@ def check_permission(permission, context):
     """ Check the given Zope permission against a context object """
 
     if not getSecurityManager().checkPermission(permission, context):
-        raise Unauthorized('You don\'t have the \'{}\' permission'.format(permission))
+        raise Unauthorized(
+            'You don\'t have the \'{}\' permission'.format(permission))
 
 
 def decode_json_payload(request):
@@ -89,13 +87,15 @@ def store_zip(context, zip_filename, target_directory):
     handle.makedir(target_directory)
     with fs.zipfs.ZipFS(zip_filename, 'r') as zip_in:
         for name in zip_in.walkfiles():
-            target_path = '{}/{}'.format(target_directory, name.replace('/result/', ''))
+            target_path = '{}/{}'.format(target_directory,
+                                         name.replace('/result/', ''))
             target_dir = os.path.dirname(target_path)
             if not handle.exists(target_dir):
                 handle.makedir(target_dir, recursive=True)
             with handle.open(target_path, 'wb') as fp_out:
                 with zip_in.open(name, 'rb') as fp_in:
                     fp_out.write(fp_in.read())
+
 
 @contextmanager
 def close_and_delete(fp):
@@ -124,7 +124,8 @@ def convert_crex(zip_path):
     diff = datetime.datetime.utcnow() - crex_token_last_fetched
     if not crex_token or diff.total_seconds() > 3600:
         f = furl.furl(settings.crex_conversion_url)
-        token_url = '{}://{}/api/Token'.format(f.scheme, f.host, settings.crex_conversion_url)
+        token_url = '{}://{}/api/Token'.format(
+            f.scheme, f.host, settings.crex_conversion_url)
         headers = {'content-type': 'application/x-www-form-urlencoded'}
         params = dict(
             username=settings.crex_conversion_username,
@@ -148,7 +149,8 @@ def convert_crex(zip_path):
 
     with open(zip_path, 'rb') as fp:
         try:
-            LOG.info(u'Starting C-Rex conversion of {}, size {} '.format(zip_path, os.path.getsize(zip_path)))
+            LOG.info(u'Starting C-Rex conversion of {}, size {} '.format(zip_path,
+                                                                         os.path.getsize(zip_path)))
             result = requests.post(
                 settings.crex_conversion_url, files=dict(source=fp), headers=headers)
         except requests.ConnectionError:
@@ -156,7 +158,8 @@ def convert_crex(zip_path):
             raise CRexConversionError(msg)
 
         if result.status_code == 200:
-            msg = u'Conversion successful (HTTP code {}, duration: {:2.1f} seconds))'.format(result.status_code, time.time() - ts)
+            msg = u'Conversion successful (HTTP code {}, duration: {:2.1f} seconds))'.format(
+                result.status_code, time.time() - ts)
             LOG.info(msg)
             zip_out = tempfile.mktemp(suffix='.zip')
             with open(zip_out, 'wb') as fp:
@@ -175,7 +178,6 @@ def convert_crex(zip_path):
             raise CRexConversionError(msg)
 
 
-
 def timed(method):
     """ A timing decorator """
 
@@ -185,7 +187,7 @@ def timed(method):
         result = method(self)
         te = time.time()
         s = u'{:>25}(\'{}\')'.format(self.__class__.__name__, path)
-        s = s + u': {:2.6f} seconds'.format(te-ts)
+        s = s + u': {:2.6f} seconds'.format(te - ts)
         LOG.info(s)
         return result
     return timed
@@ -204,7 +206,7 @@ class api_create(BaseService):
     @timed
     def render(self):
         """ Create a new content object in Plone """
-      
+
         check_permission(permissions.ModifyPortalContent, self.context)
         payload = decode_json_payload(self.request)
 
@@ -213,14 +215,16 @@ class api_create(BaseService):
         description = payload.get('description')
         custom = payload.get('custom')
 
-        connector = plone.api.content.create(type='xmldirector.plonecore.connector',
+        connector = plone.api.content.create(
+            type='xmldirector.plonecore.connector',
             container=self.context,
             id=id,
             title=title,
             description=description)
 
-        connector.webdav_subpath = 'plone-api-{}/{}'.format(plone.api.portal.get().getId(), id)
-        handle = connector.webdav_handle(create_if_not_existing=True)
+        connector.webdav_subpath = 'plone-api-{}/{}'.format(
+            plone.api.portal.get().getId(), id)
+        connector.webdav_handle(create_if_not_existing=True)
 
         if custom:
             annotations = IAnnotations(connector)
@@ -231,7 +235,7 @@ class api_create(BaseService):
         return dict(
             id=id,
             url=connector.absolute_url(),
-            )
+        )
 
 
 class api_search(BaseService):
@@ -243,7 +247,7 @@ class api_search(BaseService):
 
         catalog = plone.api.portal.get_tool('portal_catalog')
         query = dict(
-            portal_type='xmldirector.plonecore.connector', 
+            portal_type='xmldirector.plonecore.connector',
             path='/'.join(self.context.getPhysicalPath()))
         brains = catalog(**query)
         items = list()
@@ -297,7 +301,7 @@ class api_set_metadata(BaseService):
         description = payload.get('description')
         if description:
             self.context.setDescription(description)
-        
+
         subject = payload.get('subject')
         if subject:
             self.context.setSubject(subject)
@@ -331,7 +335,7 @@ class api_store(BaseService):
 
     @timed
     def render(self):
-        
+
         check_permission(permissions.ModifyPortalContent, self.context)
         IPersistentLogger(self.context).log('store')
         payload = decode_json_payload(self.request)
@@ -347,7 +351,7 @@ class api_store(BaseService):
         with open(zip_out, 'wb') as fp:
             fp.write(payload['zip'].decode('base64'))
 
-        # and unpack it        
+        # and unpack it
         with fs.zipfs.ZipFS(zip_out, 'r') as zip_handle:
             for name in zip_handle.walkfiles():
                 dest_name = '{}/{}'.format(target_dir, name)
@@ -370,7 +374,7 @@ class api_get(BaseService):
         check_permission(permissions.ModifyPortalContent, self.context)
         json_data = decode_json_payload(self.request)
 
-        if not 'files' in json_data:
+        if 'files' not in json_data:
             raise ValueError(u'JSON structure has no \'files\' field')
 
         files = json_data['files']
@@ -389,9 +393,11 @@ class api_get(BaseService):
                         break
 
         with close_and_delete(open(zip_out, 'rb')) as fp:
-            self.request.response.setHeader('content-length', str(os.path.getsize(zip_out)))
+            self.request.response.setHeader(
+                'content-length', str(os.path.getsize(zip_out)))
             self.request.response.setHeader('content-type', 'application/zip')
-            self.request.response.setHeader('content-disposition', 'attachment; filename={}.zip'.format(self.context.getId()))
+            self.request.response.setHeader(
+                'content-disposition', 'attachment; filename={}.zip'.format(self.context.getId()))
             self.request.response.write(fp.read())
 
 
@@ -402,7 +408,8 @@ class api_convert(BaseService):
 
         from collective.taskqueue import taskqueue
 
-        task_id = taskqueue.add('{}/xmldirector-test'.format(plone.api.portal.get().absolute_url(1)))
+        task_id = taskqueue.add(
+            '{}/xmldirector-test'.format(plone.api.portal.get().absolute_url(1)))
 
         check_permission(permissions.ModifyPortalContent, self.context)
         IPersistentLogger(self.context).log('convert')
@@ -418,9 +425,11 @@ class api_convert(BaseService):
         store_zip(self.context, zip_out, 'current')
 
         with close_and_delete(open(zip_out, 'rb')) as fp:
-            self.request.response.setHeader('content-length', str(os.path.getsize(zip_out)))
+            self.request.response.setHeader(
+                'content-length', str(os.path.getsize(zip_out)))
             self.request.response.setHeader('content-type', 'application/zip')
-            self.request.response.setHeader('content-disposition', 'attachment; filename={}.zip'.format(self.context.getId()))
+            self.request.response.setHeader(
+                'content-disposition', 'attachment; filename={}.zip'.format(self.context.getId()))
             self.request.response.write(fp.read())
 
 
