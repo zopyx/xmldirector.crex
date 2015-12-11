@@ -442,10 +442,3 @@ class api_list(BaseService):
 
         handle = self.context.webdav_handle()
         return dict(files=list(handle.walkfiles()))
-
-
-class api_test(BaseService):
-
-    @timed
-    def render(self):
-        return dict(hello='world')
