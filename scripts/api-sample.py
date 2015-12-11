@@ -131,9 +131,8 @@ pprint.pprint(data)
 print '-'*80
 print 'CONVERT'
 result = send_request('GET', 'xmldirector-convert', url=url)
-verify_result(result)
-data = result.json()
-pprint.pprint(data)
+open('convert.zip', 'wb').write(result.content)
+print 'conversion result written to convert.zip'
 
 
 print '-'*80
@@ -142,27 +141,3 @@ result = send_request('DELETE', 'xmldirector-delete', url=url)
 verify_result(result)
 data = result.json()
 pprint.pprint(data)
-
-import sys
-sys.exit(0)
-
-
-
-
-#print '-'*80
-#print 'CONVERT2'
-#result = send_request('GET','/@@API/xmldirector/convert2/')
-#verify_result(result)
-#data = result.json()
-#pprint.pprint(data)
-
-#print '-'*80
-#print 'CONVERT'
-#files = {'file': open('sample.zip', 'rb')}
-#result = send_request('POST', '/@@API/xmldirector/convert/', files=files)
-#verify_result(result)
-#data = result.json()
-#pprint.pprint(data)
-
-
-

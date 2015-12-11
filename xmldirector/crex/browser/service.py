@@ -17,6 +17,7 @@ import tempfile
 import requests
 import fnmatch
 import fs.zipfs
+from contextlib import contextmanager
 
 import plone.api
 from zope import interface
@@ -97,6 +98,16 @@ def store_zip(context, zip_filename, target_directory):
             with handle.open(target_path, 'wb') as fp_out:
                 with zip_in.open(name, 'rb') as fp_in:
                     fp_out.write(fp_in.read())
+
+@contextmanager
+def close_and_delete(fp):
+    """ Context manager for closing and deleting a temporary file after usage """
+
+    try:
+        yield fp
+    finally:
+        fp.close()
+        os.unlink(fp.name)
 
 
 def convert_crex(zip_path):
@@ -195,7 +206,7 @@ class api_create(BaseService):
     @timed
     def render(self):
         """ Create a new content object in Plone """
-
+        print 'create'
         check_permission(permissions.ModifyPortalContent, self.context)
         payload = decode_json_payload(self.request)
 
@@ -233,7 +244,9 @@ class api_search(BaseService):
         check_permission(permissions.View, self.context)
 
         catalog = plone.api.portal.get_tool('portal_catalog')
-        query = dict(portal_type='xmldirector.plonecore.connector', path='/'.join(self.context.getPhysicalPath()))
+        query = dict(
+            portal_type='xmldirector.plonecore.connector', 
+            path='/'.join(self.context.getPhysicalPath()))
         brains = catalog(**query)
         items = list()
         for brain in brains:
@@ -377,11 +390,12 @@ class api_get(BaseService):
                                 fp_out.write(fp_in.read())
                         break
 
-        self.request.response.setHeader('content-length', str(os.path.getsize(zip_out)))
-        self.request.response.setHeader('content-type', 'application/zip')
-        self.request.response.setHeader('content-disposition', 'attachment; filename={}.zip'.format(self.context.getId()))
-        with open(zip_out, 'rb') as fp:
-            self.request.response.write(fp.read())
+        with close_and_delete(open(zip_out, 'rb')) as fp:
+            self.request.response.setHeader('content-length', str(os.path.getsize(zip_out)))
+            self.request.response.setHeader('content-type', 'application/zip')
+            self.request.response.setHeader('content-disposition', 'attachment; filename={}.zip'.format(self.context.getId()))
+            with open(zip_out, 'rb') as fp:
+                self.request.response.write(fp.read())
 
 
 class api_convert(BaseService):
@@ -402,11 +416,12 @@ class api_convert(BaseService):
         zip_out = convert_crex(zip_tmp)
         store_zip(self.context, zip_out, 'current')
 
-        self.request.response.setHeader('content-length', str(os.path.getsize(zip_out)))
-        self.request.response.setHeader('content-type', 'application/zip')
-        self.request.response.setHeader('content-disposition', 'attachment; filename={}.zip'.format(self.context.getId()))
-        with open(zip_out, 'rb') as fp:
-            self.request.response.write(fp.read())
+        with close_and_delete(open(zip_out, 'rb')) as fp:
+            self.request.response.setHeader('content-length', str(os.path.getsize(zip_out)))
+            self.request.response.setHeader('content-type', 'application/zip')
+            self.request.response.setHeader('content-disposition', 'attachment; filename={}.zip'.format(self.context.getId()))
+            with open(zip_out, 'rb') as fp:
+                self.request.response.write(fp.read())
 
 
 class api_list(BaseService):
