@@ -23,6 +23,7 @@ from zope import interface
 from zope.component import getUtility
 from zope.annotation.interfaces import IAnnotations
 from Products.CMFCore import permissions
+from ZPublisher.Iterators import filestream_iterator
 from AccessControl import Unauthorized
 from AccessControl import getSecurityManager
 from plone.registry.interfaces import IRegistry
@@ -376,8 +377,11 @@ class api_get(BaseService):
                                 fp_out.write(fp_in.read())
                         break
 
+        self.request.response.setHeader('content-length', str(os.path.getsize(zip_out)))
+        self.request.response.setHeader('content-type', 'application/zip')
+        self.request.response.setHeader('content-disposition', 'attachment; filename={}.zip'.format(self.context.getId()))
         with open(zip_out, 'rb') as fp:
-            return dict(file=fp.read().encode('base64'))
+            self.request.response.write(fp.read())
 
 
 class api_convert(BaseService):
@@ -398,8 +402,11 @@ class api_convert(BaseService):
         zip_out = convert_crex(zip_tmp)
         store_zip(self.context, zip_out, 'current')
 
+        self.request.response.setHeader('content-length', str(os.path.getsize(zip_out)))
+        self.request.response.setHeader('content-type', 'application/zip')
+        self.request.response.setHeader('content-disposition', 'attachment; filename={}.zip'.format(self.context.getId()))
         with open(zip_out, 'rb') as fp:
-            return dict(data=fp.read().encode('base64'))
+            self.request.response.write(fp.read())
 
 
 class api_list(BaseService):

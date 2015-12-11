@@ -112,14 +112,14 @@ for i in range(1,3):
 
 
 print '-'*80
-print 'UPLOAD GET'
+print 'GET'
 payload = dict(
     files=['src/*']
 )
 result = send_request('POST', 'xmldirector-get', data=json.dumps(payload), url=url)
-verify_result(result)
-data = result.json()
-pprint.pprint(data)
+open('out.zip', 'wb').write(result.content)
+print 'output written to out.zip'
+#verify_result(result)
 
 print '-'*80
 print 'LIST'
