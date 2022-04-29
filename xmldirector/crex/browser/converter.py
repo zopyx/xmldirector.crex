@@ -32,7 +32,10 @@ class Converter(BrowserView):
         with open(zip_out, 'rb') as fp:
             self.request.response.setHeader('content-type', 'application/zip')
             self.request.response.setHeader(
-                'content-disposition', 'attachment;filename={}'.format('{}-converted.zip'.format(basename)))
+                'content-disposition',
+                f'attachment;filename={basename}-converted.zip',
+            )
+
             self.request.response.setHeader(
                 'content-length', str(os.path.getsize(zip_out)))
             self.request.response.write(fp.read())
