@@ -48,8 +48,7 @@ def check_permission(permission, context):
     """ Check the given Zope permission against a context object """
 
     if not getSecurityManager().checkPermission(permission, context):
-        raise Unauthorized(
-            'You don\'t have the \'{}\' permission'.format(permission))
+        raise Unauthorized(f"You don't have the '{permission}' permission")
 
 
 def decode_json_payload(request):
@@ -87,8 +86,7 @@ def store_zip(context, zip_filename, target_directory):
     handle.makedir(target_directory)
     with fs.zipfs.ZipFS(zip_filename, 'r') as zip_in:
         for name in zip_in.walkfiles():
-            target_path = '{}/{}'.format(target_directory,
-                                         name.replace('/result/', ''))
+            target_path = f"{target_directory}/{name.replace('/result/', '')}"
             target_dir = os.path.dirname(target_path)
             if not handle.exists(target_dir):
                 handle.makedir(target_dir, recursive=True)
@@ -124,8 +122,7 @@ def convert_crex(zip_path):
     diff = datetime.datetime.utcnow() - crex_token_last_fetched
     if not crex_token or diff.total_seconds() > 3600:
         f = furl.furl(settings.crex_conversion_url)
-        token_url = '{}://{}/api/Token'.format(
-            f.scheme, f.host, settings.crex_conversion_url)
+        token_url = f'{f.scheme}://{f.host}/api/Token'
         headers = {'content-type': 'application/x-www-form-urlencoded'}
         params = dict(
             username=settings.crex_conversion_username,
@@ -133,8 +130,8 @@ def convert_crex(zip_path):
             grant_type='password')
         result = requests.post(token_url, data=params, headers=headers)
         if result.status_code != 200:
-            msg = u'Error retrieving DOCX conversion token from webservice (HTTP code {}, Message {})'.format(
-                result.status_code, result.text)
+            msg = f'Error retrieving DOCX conversion token from webservice (HTTP code {result.status_code}, Message {result.text})'
+
             LOG.error(msg)
             raise CRexConversionError(msg)
         data = result.json()
@@ -145,12 +142,14 @@ def convert_crex(zip_path):
     else:
         LOG.info('Fetching DOCX authentication token from Plone cache')
 
-    headers = {'authorization': 'Bearer {}'.format(crex_token)}
+    headers = {'authorization': f'Bearer {crex_token}'}
 
     with open(zip_path, 'rb') as fp:
         try:
-            LOG.info(u'Starting C-Rex conversion of {}, size {} '.format(zip_path,
-                                                                         os.path.getsize(zip_path)))
+            LOG.info(
+                f'Starting C-Rex conversion of {zip_path}, size {os.path.getsize(zip_path)} '
+            )
+
             result = requests.post(
                 settings.crex_conversion_url, files=dict(source=fp), headers=headers)
         except requests.ConnectionError:
@@ -172,8 +171,8 @@ def convert_crex(zip_path):
                 settings.crex_conversion_token = u''
                 settings.crex_conversion_token_last_fetched = datetime.datetime(
                     1999, 1, 1)
-            msg = u'Conversion failed (HTTP code {}, message {})'.format(
-                result.status_code, result.text)
+            msg = f'Conversion failed (HTTP code {result.status_code}, message {result.text})'
+
             LOG.error(msg)
             raise CRexConversionError(msg)
 
@@ -186,8 +185,10 @@ def timed(method):
         ts = time.time()
         result = method(self)
         te = time.time()
-        s = u'{:>25}(\'{}\')'.format(self.__class__.__name__, path)
-        s = s + u': {:2.6f} seconds'.format(te - ts)
+        s = u'{:>25}(\'{}\')'.format(
+            self.__class__.__name__, path
+        ) + u': {:2.6f} seconds'.format(te - ts)
+
         LOG.info(s)
         return result
     return timed
@@ -222,8 +223,7 @@ class api_create(BaseService):
             title=title,
             description=description)
 
-        connector.webdav_subpath = 'plone-api-{}/{}'.format(
-            plone.api.portal.get().getId(), id)
+        connector.webdav_subpath = f'plone-api-{plone.api.portal.get().getId()}/{id}'
         connector.webdav_handle(create_if_not_existing=True)
 
         if custom:
@@ -250,16 +250,19 @@ class api_search(BaseService):
             portal_type='xmldirector.plonecore.connector',
             path='/'.join(self.context.getPhysicalPath()))
         brains = catalog(**query)
-        items = list()
-        for brain in brains:
-            items.append(dict(
+        items = [
+            dict(
                 id=brain.getId,
                 path=brain.getPath(),
                 url=brain.getURL(),
                 title=brain.Title,
                 creator=brain.Creator,
                 created=brain.created.ISO8601(),
-                modified=brain.modified.ISO8601()))
+                modified=brain.modified.ISO8601(),
+            )
+            for brain in brains
+        ]
+
         return dict(items=items)
 
 
@@ -294,20 +297,16 @@ class api_set_metadata(BaseService):
         payload = decode_json_payload(self.request)
         IPersistentLogger(self.context).log('set_metadata', details=payload)
 
-        title = payload.get('title')
-        if title:
+        if title := payload.get('title'):
             self.context.setTitle(title)
 
-        description = payload.get('description')
-        if description:
+        if description := payload.get('description'):
             self.context.setDescription(description)
 
-        subject = payload.get('subject')
-        if subject:
+        if subject := payload.get('subject'):
             self.context.setSubject(subject)
 
-        custom = payload.get('custom')
-        if custom:
+        if custom := payload.get('custom'):
             annotations = IAnnotations(self.context)
             annotations[ANNOTATION_KEY] = custom
 
@@ -354,14 +353,14 @@ class api_store(BaseService):
         # and unpack it
         with fs.zipfs.ZipFS(zip_out, 'r') as zip_handle:
             for name in zip_handle.walkfiles():
-                dest_name = '{}/{}'.format(target_dir, name)
+                dest_name = f'{target_dir}/{name}'
                 dest_dir = os.path.dirname(dest_name)
                 if not webdav_handle.exists(dest_dir):
                     webdav_handle.makedir(dest_dir)
                 data = zip_handle.open(name, 'rb').read()
                 with webdav_handle.open(dest_name, 'wb') as fp:
                     fp.write(data)
-                with webdav_handle.open(dest_name + '.sha256', 'wb') as fp:
+                with webdav_handle.open(f'{dest_name}.sha256', 'wb') as fp:
                     fp.write(hashlib.sha256(data).hexdigest())
         return dict(msg=u'Saved')
 
@@ -397,7 +396,10 @@ class api_get(BaseService):
                 'content-length', str(os.path.getsize(zip_out)))
             self.request.response.setHeader('content-type', 'application/zip')
             self.request.response.setHeader(
-                'content-disposition', 'attachment; filename={}.zip'.format(self.context.getId()))
+                'content-disposition',
+                f'attachment; filename={self.context.getId()}.zip',
+            )
+
             self.request.response.write(fp.read())
 
 
@@ -409,7 +411,9 @@ class api_convert(BaseService):
         from collective.taskqueue import taskqueue
 
         task_id = taskqueue.add(
-            '{}/xmldirector-test'.format(plone.api.portal.get().absolute_url(1)))
+            f'{plone.api.portal.get().absolute_url(1)}/xmldirector-test'
+        )
+
 
         check_permission(permissions.ModifyPortalContent, self.context)
         IPersistentLogger(self.context).log('convert')
@@ -429,7 +433,10 @@ class api_convert(BaseService):
                 'content-length', str(os.path.getsize(zip_out)))
             self.request.response.setHeader('content-type', 'application/zip')
             self.request.response.setHeader(
-                'content-disposition', 'attachment; filename={}.zip'.format(self.context.getId()))
+                'content-disposition',
+                f'attachment; filename={self.context.getId()}.zip',
+            )
+
             self.request.response.write(fp.read())
 
 
@@ -451,8 +458,7 @@ class api_list_full(BaseService):
         check_permission(permissions.View, self.context)
 
         handle = self.context.webdav_handle()
-        result = list()
+        result = []
         for dirname in handle.walkdirs():
-            for d in handle.ilistdirinfo(dirname, full=True):
-                result.append(d)
+            result.extend(iter(handle.ilistdirinfo(dirname, full=True)))
         return result
